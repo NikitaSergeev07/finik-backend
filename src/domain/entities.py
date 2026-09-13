@@ -5,7 +5,7 @@ from datetime import datetime
 from uuid import UUID
 
 from domain import rules
-from domain.enums import ActionKind, Category, Mood, Species
+from domain.enums import ActionKind, Category, Mood, Species, TaskKind, TaskTarget
 
 
 @dataclass(slots=True)
@@ -95,3 +95,75 @@ class LogEntry:
     category: Category | None = None
     note: str = ""
     meta: dict[str, object] = field(default_factory=dict)
+
+
+# --- контент и прогресс по нему ------------------------------------------
+
+
+@dataclass(slots=True)
+class ShopItem:
+    slug: str
+    name: str
+    category: Category
+    cost: int
+    old_cost: int | None
+    glyph: str
+    restore: int = 0
+    xp_bonus: int = 0
+
+    @property
+    def is_sale(self) -> bool:
+        return self.old_cost is not None
+
+    @property
+    def sale_percent(self) -> int:
+        return round((1 - self.cost / self.old_cost) * 100) if self.old_cost else 0
+
+
+@dataclass(slots=True)
+class Purchase:
+    id: UUID
+    player_id: UUID
+    week_id: UUID
+    item_slug: str
+    cost: int
+
+
+@dataclass(slots=True)
+class TaskDef:
+    slug: str
+    title: str
+    kind: TaskKind
+    target: TaskTarget | None
+    reward: int
+    params: dict[str, object] = field(default_factory=dict)
+
+
+@dataclass(slots=True)
+class TaskProgress:
+    player_id: UUID
+    week_id: UUID
+    task_slug: str
+    progress: int = 0
+    data: dict[str, object] = field(default_factory=dict)
+    done_at: datetime | None = None
+    rewarded_at: datetime | None = None
+
+
+@dataclass(slots=True)
+class QuizQuestion:
+    slug: str
+    lesson_slug: str
+    order: int
+    question: str
+    options: list[str]
+    right_index: int
+    explanation: str
+
+
+@dataclass(slots=True)
+class Badge:
+    slug: str
+    name: str
+    note: str
+    params: dict[str, object] = field(default_factory=dict)

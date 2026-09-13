@@ -39,10 +39,8 @@ def close_week(player: Player, pet: Pet, week: Week, goal: Goal) -> WeekOutcome:
     goal.saved += saved
     week.entry(Category.SAVE).spent += saved
 
+    # Остатки статей возвращаются монетами; факт трат не трогаем, он нужен отчёту план/факт.
     returned = sum(week.entry(cat).left for cat in Category if cat.is_need)
-    for category in Category:
-        if category.is_need:
-            week.entry(category).spent = week.entry(category).planned
     player.free_coins += returned
 
     xp = saved * rules.XP_PER_SAVED_COIN

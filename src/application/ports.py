@@ -3,7 +3,19 @@
 from typing import Protocol, Self
 from uuid import UUID
 
-from domain.entities import Goal, LogEntry, Pet, Player, Week
+from domain.entities import (
+    Goal,
+    LogEntry,
+    Pet,
+    Player,
+    Purchase,
+    QuizQuestion,
+    ShopItem,
+    TaskDef,
+    TaskProgress,
+    Week,
+)
+from domain.enums import ActionKind
 
 
 class PlayerRepository(Protocol):
@@ -34,6 +46,25 @@ class GoalRepository(Protocol):
 
 class LogRepository(Protocol):
     async def add(self, entry: LogEntry) -> None: ...
+    async def care_days(self, player_id: UUID, week_id: UUID) -> int: ...
+    async def sum_amount(self, player_id: UUID, week_id: UUID, kind: ActionKind) -> int: ...
+
+
+class ShopRepository(Protocol):
+    async def list_items(self) -> list[ShopItem]: ...
+    async def get_item(self, slug: str) -> ShopItem | None: ...
+    async def add_purchase(self, purchase: Purchase) -> None: ...
+    async def count_discount_purchases(self, player_id: UUID, week_id: UUID) -> int: ...
+
+
+class TaskRepository(Protocol):
+    async def list_defs(self) -> list[TaskDef]: ...
+    async def get_def(self, slug: str) -> TaskDef | None: ...
+    async def list_questions(self, lesson_slug: str) -> list[QuizQuestion]: ...
+    async def get_progress(
+        self, player_id: UUID, week_id: UUID, slug: str
+    ) -> TaskProgress | None: ...
+    async def upsert_progress(self, progress: TaskProgress) -> None: ...
 
 
 class UnitOfWork(Protocol):
@@ -44,6 +75,8 @@ class UnitOfWork(Protocol):
     weeks: WeekRepository
     goals: GoalRepository
     log: LogRepository
+    shop: ShopRepository
+    tasks: TaskRepository
 
     async def __aenter__(self) -> Self: ...
     async def __aexit__(self, *exc: object) -> None: ...

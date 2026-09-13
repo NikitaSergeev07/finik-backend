@@ -8,6 +8,7 @@ from httpx import ASGITransport, AsyncClient
 
 os.environ.setdefault("FINIK_DATABASE_URL", "postgresql+asyncpg://localhost:5432/finik_test")
 
+from infrastructure.content.seed import seed
 from infrastructure.db import models  # noqa: F401
 from infrastructure.db.base import Base
 from infrastructure.db.engine import get_engine
@@ -20,6 +21,7 @@ async def _schema() -> AsyncIterator[None]:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
+    await seed()
     yield
     await engine.dispose()
 

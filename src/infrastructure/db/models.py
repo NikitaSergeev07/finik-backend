@@ -178,7 +178,10 @@ class TaskProgressRow(IdMixin, Base):
     week_id: Mapped[UUID] = mapped_column(ForeignKey("weeks.id", ondelete="CASCADE"))
     task_slug: Mapped[str] = mapped_column(ForeignKey("task_defs.slug"))
     progress: Mapped[int] = mapped_column(Integer, default=0)
+    # Служебные данные правила: для урока — список отвеченных вопросов.
+    data: Mapped[dict[str, object]] = mapped_column(JSON, default=dict)
     done_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    rewarded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     __table_args__ = (
         UniqueConstraint("player_id", "week_id", "task_slug", name="uq_task_progress_week"),

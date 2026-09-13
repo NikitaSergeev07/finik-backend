@@ -9,6 +9,8 @@ from infrastructure.db.repositories.sqlalchemy import (
     LogRepo,
     PetRepo,
     PlayerRepo,
+    ShopRepo,
+    TaskRepo,
     WeekRepo,
 )
 
@@ -26,6 +28,8 @@ class SqlAlchemyUnitOfWork:
         self.weeks = WeekRepo(s)
         self.goals = GoalRepo(s)
         self.log = LogRepo(s)
+        self.shop = ShopRepo(s)
+        self.tasks = TaskRepo(s)
         return self
 
     async def __aexit__(self, *exc: object) -> None:

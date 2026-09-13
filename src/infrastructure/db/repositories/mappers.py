@@ -1,6 +1,18 @@
 """Перевод между строками базы и сущностями домена. Единственное место, где они встречаются."""
 
-from domain.entities import Goal, LogEntry, Pet, PlanEntry, Player, Week
+from domain.entities import (
+    Goal,
+    LogEntry,
+    Pet,
+    PlanEntry,
+    Player,
+    Purchase,
+    QuizQuestion,
+    ShopItem,
+    TaskDef,
+    TaskProgress,
+    Week,
+)
 from domain.enums import Category
 from infrastructure.db.models import (
     ActionLogRow,
@@ -8,6 +20,11 @@ from infrastructure.db.models import (
     PetRow,
     PlanEntryRow,
     PlayerRow,
+    PurchaseRow,
+    QuizQuestionRow,
+    ShopItemRow,
+    TaskDefRow,
+    TaskProgressRow,
     WeekRow,
 )
 
@@ -96,3 +113,61 @@ def log_to_row(entry: LogEntry) -> ActionLogRow:
         note=entry.note,
         meta=entry.meta,
     )
+
+
+def shop_item_from_row(row: ShopItemRow) -> ShopItem:
+    return ShopItem(
+        row.slug,
+        row.name,
+        row.category,
+        row.cost,
+        row.old_cost,
+        row.glyph,
+        row.restore,
+        row.xp_bonus,
+    )
+
+
+def purchase_to_row(p: Purchase) -> PurchaseRow:
+    return PurchaseRow(
+        id=p.id, player_id=p.player_id, week_id=p.week_id, item_slug=p.item_slug, cost=p.cost
+    )
+
+
+def task_def_from_row(row: TaskDefRow) -> TaskDef:
+    return TaskDef(row.slug, row.title, row.kind, row.target, row.reward, dict(row.params))
+
+
+def question_from_row(row: QuizQuestionRow) -> QuizQuestion:
+    return QuizQuestion(
+        row.slug,
+        row.lesson_slug,
+        row.order,
+        row.question,
+        list(row.options),
+        row.right_index,
+        row.explanation,
+    )
+
+
+def progress_from_row(row: TaskProgressRow) -> TaskProgress:
+    return TaskProgress(
+        row.player_id,
+        row.week_id,
+        row.task_slug,
+        row.progress,
+        dict(row.data),
+        row.done_at,
+        row.rewarded_at,
+    )
+
+
+def progress_to_row(p: TaskProgress, row: TaskProgressRow | None = None) -> TaskProgressRow:
+    row = row or TaskProgressRow(player_id=p.player_id, week_id=p.week_id, task_slug=p.task_slug)
+    row.progress, row.data, row.done_at, row.rewarded_at = (
+        p.progress,
+        dict(p.data),
+        p.done_at,
+        p.rewarded_at,
+    )
+    return row
