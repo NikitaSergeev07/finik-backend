@@ -12,7 +12,6 @@ dependencies = [
     "pydantic>=2.8",
     "pydantic-settings>=2.4",
     "pyjwt>=2.9",
-    "orjson>=3.10",
 ]
 
 [dependency-groups]

@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="FINIK_", env_file=".env", extra="ignore")
 
     database_url: PostgresDsn = PostgresDsn("postgresql+asyncpg://localhost:5432/finik")
-    jwt_secret: str = "change-me-in-production"
+    jwt_secret: str = "change-me-in-production-please-use-32-bytes"
     jwt_ttl_days: int = 180
     debug: bool = True
 
