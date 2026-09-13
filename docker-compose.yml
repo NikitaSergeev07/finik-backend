@@ -1,0 +1,26 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: finik
+      POSTGRES_USER: finik
+      POSTGRES_PASSWORD: finik
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U finik"]
+      interval: 5s
+      retries: 10
+  api:
+    build: .
+    environment:
+      FINIK_DATABASE_URL: postgresql+asyncpg://finik:finik@db:5432/finik
+      FINIK_JWT_SECRET: ${FINIK_JWT_SECRET:-change-me-in-production}
+      FINIK_DEBUG: "true"
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+volumes:
+  pgdata:

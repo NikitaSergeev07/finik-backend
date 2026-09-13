@@ -1,0 +1,68 @@
+"""Сквозной путь ребёнка: вход, росток, план, уход, конец дня, закрытие недели."""
+
+from uuid import uuid4
+
+from httpx import AsyncClient
+
+
+async def login(client: AsyncClient) -> dict[str, str]:
+    r = await client.post("/api/v1/auth/device", json={"device_id": f"test-{uuid4()}"})
+    assert r.status_code == 200, r.text
+    assert r.json()["has_pet"] is False
+    return {"Authorization": f"Bearer {r.json()['token']}"}
+
+
+async def test_full_week(client: AsyncClient):
+    h = await login(client)
+
+    r = await client.get("/api/v1/state", headers=h)
+    assert r.status_code == 404
+
+    r = await client.post(
+        "/api/v1/pet", headers=h, json={"name": "Кустик", "species": "FINIK", "weekly_income": 40}
+    )
+    assert r.status_code == 201, r.text
+    state = r.json()
+    assert state["free_coins"] == 0 and state["pet"]["stage_name"] == "Семечко"
+    assert {e["category"]: e["planned"] for e in state["week"]["entries"]} == {
+        "FOOD": 16,
+        "WATER": 12,
+        "PLAY": 4,
+        "SAVE": 8,
+    }
+
+    r = await client.post(
+        "/api/v1/pet", headers=h, json={"name": "Ещё", "species": "CACTUS", "weekly_income": 40}
+    )
+    assert r.status_code == 409
+
+    r = await client.put(
+        "/api/v1/plan", headers=h, json={"food": 14, "water": 4, "play": 6, "save": 16}
+    )
+    assert r.status_code == 200, r.text
+    r = await client.put(
+        "/api/v1/plan", headers=h, json={"food": 30, "water": 30, "play": 0, "save": 0}
+    )
+    assert r.status_code == 422 and r.json()["error"]["code"] == "rule_violation"
+
+    r = await client.post("/api/v1/care", headers=h, json={"category": "WATER"})
+    assert r.status_code == 200, r.text
+    assert r.json()["xp_gained"] == 3 and r.json()["from_savings"] is False
+
+    r = await client.post("/api/v1/care", headers=h, json={"category": "SAVE"})
+    assert r.status_code == 422
+
+    for _day in range(1, 8):
+        r = await client.post("/api/v1/day/end", headers=h)
+        assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["week_finished"] and body["week_report"]["number"] == 1
+    assert body["state"]["week"]["number"] == 2 and body["state"]["week"]["day"] == 1
+    assert body["state"]["goal"]["saved"] == 16
+    assert body["state"]["free_coins"] == 40 + (14 + 4 + 6 - 2)
+
+    r = await client.post("/api/v1/goal/deposit", headers=h, json={"amount": 10})
+    assert r.status_code == 200 and r.json()["goal"]["saved"] == 26
+
+    r = await client.get("/api/v1/state")
+    assert r.status_code == 401
