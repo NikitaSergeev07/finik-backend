@@ -11,7 +11,9 @@ from infrastructure.ai.gigachat import GigaChatClient, GigaChatError, Message
 
 
 def make_client(handler) -> GigaChatClient:
-    settings = Settings(gigachat_auth_key="dGVzdA==", database_url="postgresql+asyncpg://x/y")
+    settings = Settings(
+        gigachat_auth_key="dGVzdA==", gigachat_ca_bundle="", database_url="postgresql+asyncpg://x/y"
+    )
     client = GigaChatClient(settings)
     client._http = httpx.AsyncClient(transport=httpx.MockTransport(handler))
     return client
@@ -31,7 +33,7 @@ async def test_token_is_cached_and_used():
         calls["chat"] += 1
         assert request.headers["Authorization"] == "Bearer tok"
         body = json.loads(request.content)
-        assert body["model"] == "GigaChat"
+        assert body["model"] == "GigaChat-3-Lightning"
         if calls["chat"] == 1:
             assert body["messages"][0]["role"] == "system"
         return httpx.Response(200, json={"choices": [{"message": {"content": " Привет! "}}]})

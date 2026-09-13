@@ -44,6 +44,9 @@ async def test_scam_needs_free_coins(client: AsyncClient):
     for _ in range(14):
         ev = (await client.get("/api/v1/events/today", headers=h)).json()
         if ev and ev["slug"] == "scam_message":
+            free = (await client.get("/api/v1/state", headers=h)).json()["free_coins"]
+            if free:  # после закрытия недели монеты есть: прячем их в мечту
+                await client.post("/api/v1/goal/deposit", headers=h, json={"amount": free})
             r = await client.post(
                 f"/api/v1/events/{ev['id']}/choose", headers=h, json={"option": "pay"}
             )

@@ -51,7 +51,7 @@ class GigaChatClient:
         if self._http is None:
             self._http = httpx.AsyncClient(
                 timeout=self.settings.gigachat_timeout_seconds,
-                verify=self.settings.gigachat_verify_ssl,
+                verify=self.settings.gigachat_verify,
             )
         return self._http
 
