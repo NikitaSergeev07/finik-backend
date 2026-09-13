@@ -3,7 +3,8 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends, Header
+from fastapi import Depends
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from application.ports import UnitOfWork
 from core.config import Settings, get_settings
@@ -22,12 +23,16 @@ def get_uow() -> UnitOfWork:
 UowDep = Annotated[UnitOfWork, Depends(get_uow)]
 
 
+_bearer = HTTPBearer(auto_error=False, description="Токен из POST /auth/device")
+
+
 def current_player_id(
-    settings: SettingsDep, authorization: Annotated[str | None, Header()] = None
+    settings: SettingsDep,
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)] = None,
 ) -> UUID:
-    if not authorization or not authorization.lower().startswith("bearer "):
+    if credentials is None:
         raise Unauthorized("Нужен токен устройства")
-    return read_token(authorization.split(" ", 1)[1].strip(), settings)
+    return read_token(credentials.credentials, settings)
 
 
 PlayerIdDep = Annotated[UUID, Depends(current_player_id)]
