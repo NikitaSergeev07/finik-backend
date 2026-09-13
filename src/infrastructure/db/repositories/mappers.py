@@ -1,6 +1,10 @@
 """Перевод между строками базы и сущностями домена. Единственное место, где они встречаются."""
 
 from domain.entities import (
+    Badge,
+    EventDef,
+    EventInstance,
+    EventOption,
     Goal,
     LogEntry,
     Pet,
@@ -16,6 +20,9 @@ from domain.entities import (
 from domain.enums import Category
 from infrastructure.db.models import (
     ActionLogRow,
+    BadgeDefRow,
+    EventDefRow,
+    EventInstanceRow,
     GoalRow,
     PetRow,
     PlanEntryRow,
@@ -171,3 +178,28 @@ def progress_to_row(p: TaskProgress, row: TaskProgressRow | None = None) -> Task
         p.rewarded_at,
     )
     return row
+
+
+def event_def_from_row(row: EventDefRow) -> EventDef:
+    options = [
+        EventOption(str(o["key"]), str(o["label"]), dict(o.get("effects", {}))) for o in row.options
+    ]
+    return EventDef(row.slug, row.title, row.text, row.weight, row.min_week, options)
+
+
+def event_from_row(row: EventInstanceRow) -> EventInstance:
+    return EventInstance(
+        row.id, row.player_id, row.week_id, row.event_slug, row.day, row.chosen, row.resolved_at
+    )
+
+
+def event_to_row(e: EventInstance, row: EventInstanceRow | None = None) -> EventInstanceRow:
+    row = row or EventInstanceRow(
+        id=e.id, player_id=e.player_id, week_id=e.week_id, event_slug=e.event_slug, day=e.day
+    )
+    row.chosen, row.resolved_at = e.chosen, e.resolved_at
+    return row
+
+
+def badge_from_row(row: BadgeDefRow) -> Badge:
+    return Badge(row.slug, row.name, row.note, dict(row.params))

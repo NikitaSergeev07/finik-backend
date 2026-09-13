@@ -1,11 +1,15 @@
 """Репозитории поверх одной сессии. Сохранение обновляет поля найденной строки."""
 
+from datetime import UTC, datetime
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from domain.entities import (
+    Badge,
+    EventDef,
+    EventInstance,
     Goal,
     LogEntry,
     Pet,
@@ -20,8 +24,12 @@ from domain.entities import (
 from domain.enums import ActionKind
 from infrastructure.db.models import (
     ActionLogRow,
+    BadgeDefRow,
+    EventDefRow,
+    EventInstanceRow,
     GoalRow,
     PetRow,
+    PlayerBadgeRow,
     PlayerRow,
     PurchaseRow,
     QuizQuestionRow,
@@ -51,6 +59,11 @@ class PlayerRepo:
     async def save(self, player: Player) -> None:
         row = await self._s.get(PlayerRow, player.id)
         m.player_to_row(player, row)
+
+    async def wipe_progress(self, player_id: UUID) -> None:
+        # Журнал, покупки, прогресс и события уходят каскадом вслед за неделями и питомцем.
+        for model in (WeekRow, PetRow, GoalRow, PlayerBadgeRow):
+            await self._s.execute(delete(model).where(model.player_id == player_id))
 
 
 class PetRepo:
@@ -163,16 +176,20 @@ class ShopRepo:
         self._s.add(m.purchase_to_row(purchase))
 
     async def count_discount_purchases(self, player_id: UUID, week_id: UUID) -> int:
+        return await self._count_discount(player_id, week_id)
+
+    async def count_discount_purchases_total(self, player_id: UUID) -> int:
+        return await self._count_discount(player_id, None)
+
+    async def _count_discount(self, player_id: UUID, week_id: UUID | None) -> int:
         stmt = (
             select(func.count())
             .select_from(PurchaseRow)
             .join(ShopItemRow, ShopItemRow.slug == PurchaseRow.item_slug)
-            .where(
-                PurchaseRow.player_id == player_id,
-                PurchaseRow.week_id == week_id,
-                ShopItemRow.old_cost.is_not(None),
-            )
+            .where(PurchaseRow.player_id == player_id, ShopItemRow.old_cost.is_not(None))
         )
+        if week_id is not None:
+            stmt = stmt.where(PurchaseRow.week_id == week_id)
         return int(await self._s.scalar(stmt) or 0)
 
 
@@ -216,3 +233,54 @@ class TaskRepo:
             TaskProgressRow.task_slug == slug,
         )
         return await self._s.scalar(stmt)
+
+
+class EventRepo:
+    def __init__(self, session: AsyncSession) -> None:
+        self._s = session
+
+    async def list_defs(self) -> list[EventDef]:
+        stmt = select(EventDefRow).where(EventDefRow.active.is_(True)).order_by(EventDefRow.slug)
+        return [m.event_def_from_row(r) for r in (await self._s.scalars(stmt)).all()]
+
+    async def get_def(self, slug: str) -> EventDef | None:
+        row = await self._s.get(EventDefRow, slug)
+        return m.event_def_from_row(row) if row and row.active else None
+
+    async def get_for_day(self, player_id: UUID, week_id: UUID, day: int) -> EventInstance | None:
+        stmt = select(EventInstanceRow).where(
+            EventInstanceRow.player_id == player_id,
+            EventInstanceRow.week_id == week_id,
+            EventInstanceRow.day == day,
+        )
+        row = await self._s.scalar(stmt)
+        return m.event_from_row(row) if row else None
+
+    async def get(self, instance_id: UUID) -> EventInstance | None:
+        row = await self._s.get(EventInstanceRow, instance_id)
+        return m.event_from_row(row) if row else None
+
+    async def add(self, instance: EventInstance) -> None:
+        self._s.add(m.event_to_row(instance))
+
+    async def save(self, instance: EventInstance) -> None:
+        row = await self._s.get(EventInstanceRow, instance.id)
+        m.event_to_row(instance, row)
+
+
+class BadgeRepo:
+    def __init__(self, session: AsyncSession) -> None:
+        self._s = session
+
+    async def list_defs(self) -> list[Badge]:
+        rows = (await self._s.scalars(select(BadgeDefRow).order_by(BadgeDefRow.slug))).all()
+        return [m.badge_from_row(r) for r in rows]
+
+    async def upsert_progress(self, player_id: UUID, slug: str, percent: int) -> None:
+        row = await self._s.get(PlayerBadgeRow, (player_id, slug))
+        if row is None:
+            row = PlayerBadgeRow(player_id=player_id, badge_slug=slug)
+            self._s.add(row)
+        row.percent = percent
+        if percent >= 100 and row.unlocked_at is None:
+            row.unlocked_at = datetime.now(UTC)

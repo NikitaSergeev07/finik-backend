@@ -68,6 +68,10 @@ class Week:
     def entry(self, category: Category) -> PlanEntry:
         return self.entries[category]
 
+    def entry_saved(self) -> int:
+        """Сколько монет ушло в мечту из копилки этой недели."""
+        return self.entries[Category.SAVE].spent
+
 
 @dataclass(slots=True)
 class Goal:
@@ -167,3 +171,37 @@ class Badge:
     name: str
     note: str
     params: dict[str, object] = field(default_factory=dict)
+
+
+# --- события -----------------------------------------------------------------
+
+
+@dataclass(slots=True)
+class EventOption:
+    key: str
+    label: str
+    effects: dict[str, object] = field(default_factory=dict)
+
+
+@dataclass(slots=True)
+class EventDef:
+    slug: str
+    title: str
+    text: str
+    weight: int
+    min_week: int
+    options: list[EventOption]
+
+    def option(self, key: str) -> EventOption | None:
+        return next((o for o in self.options if o.key == key), None)
+
+
+@dataclass(slots=True)
+class EventInstance:
+    id: UUID
+    player_id: UUID
+    week_id: UUID
+    event_slug: str
+    day: int
+    chosen: str | None = None
+    resolved_at: datetime | None = None
