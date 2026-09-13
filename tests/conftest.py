@@ -8,10 +8,10 @@ from httpx import ASGITransport, AsyncClient
 
 os.environ.setdefault("FINIK_DATABASE_URL", "postgresql+asyncpg://localhost:5432/finik_test")
 
-from finik.infrastructure.db import models  # noqa: F401
-from finik.infrastructure.db.base import Base
-from finik.infrastructure.db.engine import get_engine
-from finik.main import create_app
+from infrastructure.db import models  # noqa: F401
+from infrastructure.db.base import Base
+from infrastructure.db.engine import get_engine
+from main import create_app
 
 
 @pytest.fixture(scope="session", autouse=True)

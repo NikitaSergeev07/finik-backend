@@ -6,9 +6,9 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-from finik.core.config import get_settings
-from finik.infrastructure.db import models  # noqa: F401  регистрирует таблицы
-from finik.infrastructure.db.base import Base
+from core.config import get_settings
+from infrastructure.db import models  # noqa: F401  регистрирует таблицы
+from infrastructure.db.base import Base
 
 config = context.config
 if config.config_file_name is not None:

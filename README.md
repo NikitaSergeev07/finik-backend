@@ -35,7 +35,7 @@ make dev
 Четыре слоя, зависимости направлены внутрь: api → application → domain ← infrastructure.
 
 ```
-src/finik/
+src/
 ├── domain/          правила игры на чистом Python, без FastAPI и SQLAlchemy
 │   ├── enums.py     виды ростков, статьи плана, настроение
 │   ├── rules.py     все числа баланса в одном месте

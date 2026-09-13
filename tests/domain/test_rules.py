@@ -4,11 +4,11 @@ from uuid import uuid4
 
 import pytest
 
-from finik.core.errors import RuleViolation
-from finik.domain import rules
-from finik.domain.entities import Goal, Pet, PlanEntry, Player, Week
-from finik.domain.enums import Category, Mood, Species
-from finik.domain.services import care, growth, planning
+from core.errors import RuleViolation
+from domain import rules
+from domain.entities import Goal, Pet, PlanEntry, Player, Week
+from domain.enums import Category, Mood, Species
+from domain.services import care, growth, planning
 
 
 def make_world(income: int = 40, species: Species = Species.FINIK):

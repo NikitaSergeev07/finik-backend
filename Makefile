@@ -1,6 +1,6 @@
 .PHONY: dev migrate revision test lint
 dev:        ## запустить API с автоперезагрузкой
-	uv run uvicorn finik.main:app --reload --port 8000
+	uv run uvicorn --app-dir src main:app --reload --port 8000
 migrate:    ## применить миграции
 	uv run alembic upgrade head
 revision:   ## создать миграцию по моделям: make revision m="описание"
