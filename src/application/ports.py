@@ -20,6 +20,15 @@ from domain.entities import (
 )
 from domain.enums import ActionKind
 
+from datetime import date
+from typing import Protocol, Self
+from uuid import UUID
+
+from infrastructure.db.models import WordOfDayRow  # или используй DTO/Entity, если они есть
+
+class WordOfDayRepository(Protocol):
+    async def get_by_date(self, target_date: date) -> WordOfDayRow | None: ...
+    async def add(self, word_date: date, word: str, explanation: str) -> WordOfDayRow: ...
 
 class PlayerRepository(Protocol):
     async def get(self, player_id: UUID) -> Player | None: ...
@@ -100,6 +109,7 @@ class UnitOfWork(Protocol):
     tasks: TaskRepository
     events: EventRepository
     badges: BadgeRepository
+    word_of_day: WordOfDayRepository
 
     async def __aenter__(self) -> Self: ...
     async def __aexit__(self, *exc: object) -> None: ...

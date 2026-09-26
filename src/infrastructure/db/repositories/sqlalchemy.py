@@ -39,7 +39,21 @@ from infrastructure.db.models import (
     WeekRow,
 )
 from infrastructure.db.repositories import mappers as m
+from datetime import date
+from sqlalchemy import select
+from infrastructure.db.models import WordOfDayRow
 
+class WordOfDayRepo:
+    def __init__(self, session: AsyncSession) -> None:
+        self._s = session
+
+    async def get_by_date(self, target_date: date) -> WordOfDayRow | None:
+        return await self._s.scalar(select(WordOfDayRow).where(WordOfDayRow.word_date == target_date))
+
+    async def add(self, word_date: date, word: str, explanation: str) -> WordOfDayRow:
+        row = WordOfDayRow(word_date=word_date, word=word, explanation=explanation)
+        self._s.add(row)
+        return row
 
 class PlayerRepo:
     def __init__(self, session: AsyncSession) -> None:

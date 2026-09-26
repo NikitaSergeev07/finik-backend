@@ -20,6 +20,16 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from domain.enums import ActionKind, Category, Species, TaskKind, TaskTarget
 from infrastructure.db.base import Base, IdMixin, TimestampMixin
 
+from datetime import date
+from sqlalchemy import Date, String, Text
+
+class WordOfDayRow(Base):
+    __tablename__ = "word_of_day"
+
+    word_date: Mapped[date] = mapped_column(Date, primary_key=True)  # YYYY-MM-DD
+    word: Mapped[str] = mapped_column(String(60))
+    explanation: Mapped[str] = mapped_column(Text)
+
 
 def enum_column(enum_type: type) -> Enum:
     # Храним имена (FINIK, FOOD), чтобы значения в базе совпадали с клиентом.

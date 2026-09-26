@@ -14,6 +14,7 @@ from infrastructure.db.repositories.sqlalchemy import (
     ShopRepo,
     TaskRepo,
     WeekRepo,
+    WordOfDayRepo,
 )
 
 
@@ -34,6 +35,7 @@ class SqlAlchemyUnitOfWork:
         self.tasks = TaskRepo(s)
         self.events = EventRepo(s)
         self.badges = BadgeRepo(s)
+        self.word_of_day = WordOfDayRepo(s)
         return self
 
     async def __aexit__(self, *exc: object) -> None:

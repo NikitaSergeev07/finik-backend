@@ -2,10 +2,18 @@
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from uuid import UUID
 
+from api.deps import current_player_id
 from api.router import api_router
 from core.config import get_settings
 from core.errors import AppError
+
+TEST_PLAYER_ID = UUID("00000000-0000-0000-0000-000000000001")
+
+def get_mock_player_id() -> UUID:
+    """Функция-заглушка: всегда возвращает тестового игрока без проверки токена."""
+    return TEST_PLAYER_ID
 
 
 def create_app() -> FastAPI:
@@ -17,6 +25,12 @@ def create_app() -> FastAPI:
         docs_url="/docs" if settings.debug else None,
     )
     app.include_router(api_router)
+
+    # =========================================================================
+    # ВЫКЛЮЧЕНИЕ АВТОРИЗАЦИИ: Переопределяем зависимость авторизации
+    # =========================================================================
+    app.dependency_overrides[current_player_id] = get_mock_player_id
+    # =========================================================================
 
     @app.exception_handler(AppError)
     async def app_error_handler(_: Request, exc: AppError) -> JSONResponse:

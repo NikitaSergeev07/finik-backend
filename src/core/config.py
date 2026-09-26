@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     # Путь к корневому сертификату Минцифры (PEM). Если задан, проверка идёт по нему.
     gigachat_ca_bundle: str = "certs/russian_trusted_root_ca.pem"
     gigachat_timeout_seconds: float = 20.0
+    deepseek_api_key: str = "sk-76bc3646b303446db2be61f2a1a85630"
+    deepseek_api_url: str = "https://api.deepseek.com"
+    deepseek_model: str = "deepseek-chat"
 
     @property
     def gigachat_enabled(self) -> bool:
