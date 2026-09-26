@@ -3,6 +3,7 @@ from api.deps import UowDep, SettingsDep, PlayerIdDep
 from api.schemas.ai import WordOfDayOut
 from application.use_cases import ai
 from api.schemas.ai import DiaryIn, DiaryOut
+from api.schemas.ai import DreamPlanIn, DreamPlanOut
 from infrastructure.ai.deepseek import DeepSeekClient
 
 router = APIRouter(prefix="/ai", tags=["ИИ"])
@@ -40,3 +41,21 @@ async def generate_diary(
         day=view.day,
         entry=view.entry,
     )
+
+@router.post("/dream-plan", response_model=DreamPlanOut, summary="Построить план по мечте")
+async def build_dream_plan(
+    body: DreamPlanIn,
+    player_id: PlayerIdDep,
+    uow: UowDep,
+) -> DreamPlanOut:
+    """Принимает наименование мечты и правила игры,
+
+    возвращает понятный пошаговый план действий от ИИ.
+    """
+    view = await ai.generate_dream_plan(
+        uow=uow,
+        player_id=player_id,
+        dream=body.dream,
+        rules=body.rules,
+    )
+    return DreamPlanOut(plan=view.plan)

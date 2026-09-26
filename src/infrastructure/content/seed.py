@@ -12,7 +12,7 @@ from infrastructure.db.engine import get_session_factory
 from infrastructure.db.models import (
     BadgeDefRow,
     EventDefRow,
-    QuizQuestionRow,
+    QuizQuestion,
     ShopItemRow,
     TaskDefRow,
 )
@@ -20,7 +20,7 @@ from infrastructure.db.models import (
 _TABLES = [
     (ShopItemRow, catalog.SHOP_ITEMS, ["slug"]),
     (TaskDefRow, catalog.TASK_DEFS, ["slug"]),
-    (QuizQuestionRow, catalog.QUIZ_QUESTIONS, ["slug"]),
+    (QuizQuestion, catalog.QUIZ_QUESTIONS, ["slug"]),
     (BadgeDefRow, catalog.BADGE_DEFS, ["slug"]),
     (EventDefRow, catalog.EVENT_DEFS, ["slug"]),
 ]

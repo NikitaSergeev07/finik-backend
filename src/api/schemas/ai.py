@@ -17,3 +17,10 @@ class DiaryOut(BaseModel):
     pet_name: str
     day: int
     entry: str
+
+class DreamPlanIn(BaseModel):
+    dream: str = Field(..., min_length=1, max_length=200, description="Описание мечты ребёнка (например, 'Хочу велосипед')")
+    rules: str = Field(..., min_length=1, description="Правила игры или текущие финансовые условия")
+
+class DreamPlanOut(BaseModel):
+    plan: str = Field(..., description="Пошаговый план действий, сгенерированный ИИ")

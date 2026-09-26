@@ -28,7 +28,7 @@ from infrastructure.db.models import (
     PlanEntryRow,
     PlayerRow,
     PurchaseRow,
-    QuizQuestionRow,
+    QuizQuestion,
     ShopItemRow,
     TaskDefRow,
     TaskProgressRow,
@@ -145,7 +145,7 @@ def task_def_from_row(row: TaskDefRow) -> TaskDef:
     return TaskDef(row.slug, row.title, row.kind, row.target, row.reward, dict(row.params))
 
 
-def question_from_row(row: QuizQuestionRow) -> QuizQuestion:
+def question_from_row(row: QuizQuestion) -> QuizQuestion:
     return QuizQuestion(
         row.slug,
         row.lesson_slug,
