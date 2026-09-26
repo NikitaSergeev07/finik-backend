@@ -3,6 +3,7 @@
 from typing import Self
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from infrastructure.db.repositories.chat import SqlAlchemyChatRepository
 
 from infrastructure.db.repositories.sqlalchemy import (
     BadgeRepo,
@@ -36,6 +37,7 @@ class SqlAlchemyUnitOfWork:
         self.events = EventRepo(s)
         self.badges = BadgeRepo(s)
         self.word_of_day = WordOfDayRepo(s)
+        self.chat_repository = SqlAlchemyChatRepository(self._session)
         return self
 
     async def __aexit__(self, *exc: object) -> None:

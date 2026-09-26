@@ -83,7 +83,28 @@ class DeepSeekClient:
                 f"День {day_number} заново записан в мой дневничок! "
                 f"Спасибо за заботу, мне очень нравится расти вместе с тобой!"
             )
+        
+    
+    async def send_chat_messages(self, messages: list[dict[str, str]]) -> str:
+        """Принимает готовый список сообщений [{'role': '...', 'content': '...'}]
 
+        и отправляет его в DeepSeek API.
+        """
+        try:
+            response = await self._client().post(
+                "/chat/completions",
+                json={
+                    "model": self.settings.deepseek_model,
+                    "messages": messages,
+                    "temperature": 0.8,
+                },
+            )
+            response.raise_for_status()
+            data = response.json()
+            return data["choices"][0]["message"]["content"]
+        except Exception as exc:
+            log.error(f"DeepSeek chat failed: {exc}")
+            return "Ой, я немного запутался и не могу ответить прямо сейчас..."
 
     async def generate_dream_plan(self, dream: str, rules: str) -> str:
         try:

@@ -24,3 +24,9 @@ class DreamPlanIn(BaseModel):
 
 class DreamPlanOut(BaseModel):
     plan: str = Field(..., description="Пошаговый план действий, сгенерированный ИИ")
+
+class ChatMessageIn(BaseModel):
+    message: str = Field(..., min_length=1, max_length=1000, description="Сообщение пользователя питомцу")
+
+class ChatMessageOut(BaseModel):
+    reply: str = Field(..., description="Ответ питомца")

@@ -38,6 +38,59 @@ async def get_word_of_day(uow: UnitOfWork, ai_client: DeepSeekClient) -> WordOfD
             date=today.isoformat(),
         )
 
+PET_SYSTEM_PROMPT = (
+    "Ты — дружелюбный питомец по имени Финик в обучающей финансовой игре для детей. "
+    "Разговаривай с ребёнком ласково, поддерживающе, на «ты». "
+    "Используй простые слова, иногда используй эмодзи. "
+    "Помогай ребёнку учиться копить монеты и делать правильный финансовый выбор."
+)
+
+async def chat_with_pet(
+    uow: UnitOfWork,
+    player_id: UUID,
+    user_message: str,
+    max_history_limit: int = 20,
+) -> str:
+    # 1. Загружаем историю из БД для формирования контекста
+    async with uow:
+        history = await uow.chat_repository.get_recent_messages(
+            player_id=player_id, 
+            limit=max_history_limit
+        )
+
+        # Формируем список сообщений для DeepSeek API
+        messages_for_api = [{"role": "system", "content": PET_SYSTEM_PROMPT}]
+        for msg in history:
+            messages_for_api.append({"role": msg.role, "content": msg.content})
+            
+        messages_for_api.append({"role": "user", "content": user_message})
+
+    # 2. Отправляем запрос в DeepSeek API
+    ai_client = DeepSeekClient(get_settings())
+    try:
+        reply_text = await ai_client.send_chat_messages(messages_for_api)
+    finally:
+        await ai_client.aclose()
+
+    # 3. Сохраняем И вопрос пользователя, И ответ нейросети в одной транзакции
+    async with uow:
+        # Сохраняем вопрос пользователя
+        await uow.chat_repository.add_message(
+            player_id=player_id,
+            role="user",
+            content=user_message,
+        )
+        # Сохраняем ответ ИИ
+        await uow.chat_repository.add_message(
+            player_id=player_id,
+            role="assistant",
+            content=reply_text,
+        )
+        # Фиксируем обе записи в базе данных
+        await uow.commit()
+
+    return reply_text
+
 
 @dataclass(frozen=True, slots=True)
 class DiaryView:

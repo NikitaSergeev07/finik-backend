@@ -1,9 +1,11 @@
 """Таблицы. Игровые данные — по одной строке на сущность, справочники — контент."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID, uuid4
 from sqlalchemy import ARRAY, String, SmallInteger
 from sqlalchemy.orm import Mapped, mapped_column
+
+from infrastructure.db.base import Base
 
 from sqlalchemy import (
     JSON,
@@ -256,3 +258,12 @@ class EventInstanceRow(IdMixin, Base):
         DateTime(timezone=True), server_default="now()", nullable=False
     )
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+class ChatMessageModel(Base):
+    __tablename__ = "chat_messages"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    player_id: Mapped[UUID] = mapped_column(ForeignKey("players.id", ondelete="CASCADE"), index=True)
+    role: Mapped[str] = mapped_column(String(20))  # "user" или "assistant"
+    content: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))

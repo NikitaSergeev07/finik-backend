@@ -5,6 +5,7 @@ from application.use_cases import ai
 from api.schemas.ai import DiaryIn, DiaryOut
 from api.schemas.ai import DreamPlanIn, DreamPlanOut
 from infrastructure.ai.deepseek import DeepSeekClient
+from api.schemas.ai import ChatMessageIn, ChatMessageOut
 
 router = APIRouter(prefix="/ai", tags=["ИИ"])
 
@@ -59,3 +60,20 @@ async def build_dream_plan(
         rules=body.rules,
     )
     return DreamPlanOut(plan=view.plan)
+
+@router.post("/chat", response_model=ChatMessageOut, summary="Пообщаться с питомцем")
+async def chat_endpoint(
+    body: ChatMessageIn,
+    player_id: PlayerIdDep,
+    uow: UowDep,
+) -> ChatMessageOut:
+    """Принимает строку от пользователя, сохраняет её в историю,
+
+    отправляет всю переписку в DeepSeek и возвращает ответ питомца.
+    """
+    reply = await ai.chat_with_pet(
+        uow=uow,
+        player_id=player_id,
+        user_message=body.message,
+    )
+    return ChatMessageOut(reply=reply)
