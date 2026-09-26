@@ -1,7 +1,9 @@
 """Таблицы. Игровые данные — по одной строке на сущность, справочники — контент."""
 
 from datetime import datetime
-from uuid import UUID
+from uuid import UUID, uuid4
+from sqlalchemy import ARRAY, String, SmallInteger
+from sqlalchemy.orm import Mapped, mapped_column
 
 from sqlalchemy import (
     JSON,
@@ -38,6 +40,15 @@ def enum_column(enum_type: type) -> Enum:
 
 # --- игроки и питомцы -------------------------------------------------------
 
+class QuizQuestion(Base):
+    __tablename__ = "quiz_questions"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    question: Mapped[str] = mapped_column(String(500), nullable=False)
+    options: Mapped[list[str]] = mapped_column(ARRAY(String), nullable=False)
+    correct_option_index: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    reward_coins: Mapped[int] = mapped_column(Integer, default=10, nullable=False)
+    explanation: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
 class PlayerRow(IdMixin, TimestampMixin, Base):
     __tablename__ = "players"
@@ -196,18 +207,6 @@ class TaskProgressRow(IdMixin, Base):
     __table_args__ = (
         UniqueConstraint("player_id", "week_id", "task_slug", name="uq_task_progress_week"),
     )
-
-
-class QuizQuestionRow(Base):
-    __tablename__ = "quiz_questions"
-
-    slug: Mapped[str] = mapped_column(String(40), primary_key=True)
-    lesson_slug: Mapped[str] = mapped_column(ForeignKey("task_defs.slug"), index=True)
-    order: Mapped[int] = mapped_column(Integer)
-    question: Mapped[str] = mapped_column(Text)
-    options: Mapped[list[str]] = mapped_column(JSON)
-    right_index: Mapped[int] = mapped_column(Integer)
-    explanation: Mapped[str] = mapped_column(Text)
 
 
 class BadgeDefRow(Base):

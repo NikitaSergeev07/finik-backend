@@ -70,3 +70,25 @@ async def generate_diary(
         return DiaryView(pet_name=pet_name, day=day, entry=entry_text)
     finally:
         await ai_client.aclose()
+
+
+@dataclass(frozen=True, slots=True)
+class DreamPlanView:
+    plan: str
+
+async def generate_dream_plan(
+    uow: UnitOfWork,
+    player_id: UUID,
+    dream: str,
+    rules: str,
+) -> DreamPlanView:
+    async with uow:
+        # Проверяем существование игрока и его состояние
+        state = await load_state(uow, player_id)
+
+    ai_client = DeepSeekClient(get_settings())
+    try:
+        plan_text = await ai_client.generate_dream_plan(dream=dream, rules=rules)
+        return DreamPlanView(plan=plan_text)
+    finally:
+        await ai_client.aclose()

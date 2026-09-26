@@ -84,10 +84,42 @@ class DeepSeekClient:
                 f"Спасибо за заботу, мне очень нравится расти вместе с тобой!"
             )
 
+
+    async def generate_dream_plan(self, dream: str, rules: str) -> str:
+        try:
+            response = await self._client().post(
+                "/chat/completions",
+                json={
+                    "model": self.settings.deepseek_model,
+                    "messages": [
+                        {
+                            "role": "system", 
+                            "content": "Ты — дружелюбный финансовый помощник для детей в игре «Финик».\n"
+                                    "Твоя задача — составить простой, понятный и мотивирующий пошаговый план действий "
+                                    "для достижения мечты ребёнка с учётом правил игры."
+                        },
+                        {
+                            "role": "user", 
+                            "content": f"Мечта: {dream}\n"
+                                    f"Правила игры и условия: {rules}\n\n"
+                                    "Напиши короткий и понятный план действий (3-5 шагов), на «ты», без сложных терминов."
+                        },
+                    ],
+                    "temperature": 0.7,
+                },
+            )
+            response.raise_for_status()
+            data = response.json()
+            return data["choices"][0]["message"]["content"]
+        except Exception as exc:
+            log.error(f"DeepSeek generation failed: {exc}")
+            return "Не удалось сформировать план. Попробуй позже!"
+        
+
     async def generate_word_of_day(self) -> tuple[str, str]:
         """Возвращает кортеж: (Слово, Объяснение для ребенка)."""
         prompt = (
-            "Придумай рандомное, но интересное понятие из мира финансов или экономики для детей 8-12 лет "
+            "Выбери рандомное, но интересное понятие из мира финансов или экономики для детей 8-12 лет "
             "Дай ответ STRICTLY в формате JSON с двумя полями:\n"
             '{"word": "Слово", "explanation": "Простое и понятное объяснение в 4-6 предложениях с понятным ребенку примером"}'
         )

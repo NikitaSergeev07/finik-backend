@@ -32,7 +32,7 @@ from infrastructure.db.models import (
     PlayerBadgeRow,
     PlayerRow,
     PurchaseRow,
-    QuizQuestionRow,
+    QuizQuestion,
     ShopItemRow,
     TaskDefRow,
     TaskProgressRow,
@@ -221,9 +221,9 @@ class TaskRepo:
 
     async def list_questions(self, lesson_slug: str) -> list[QuizQuestion]:
         stmt = (
-            select(QuizQuestionRow)
-            .where(QuizQuestionRow.lesson_slug == lesson_slug)
-            .order_by(QuizQuestionRow.order)
+            select(QuizQuestion)
+            .where(QuizQuestion.lesson_slug == lesson_slug)
+            .order_by(QuizQuestion.order)
         )
         return [m.question_from_row(r) for r in (await self._s.scalars(stmt)).all()]
 
