@@ -91,6 +91,7 @@ class TaskOut(BaseModel):
     goal: int
     done: bool
     rewarded: bool
+    activity: str = "QUIZ"
 
     @classmethod
     def from_view(cls, v: TaskView) -> "TaskOut":
@@ -106,6 +107,7 @@ class TaskOut(BaseModel):
             goal=s.goal,
             done=s.done,
             rewarded=v.rewarded,
+            activity="ADVENTURE" if t.params.get("adventure") else "QUIZ",
         )
 
 
@@ -114,15 +116,25 @@ class QuestionOut(BaseModel):
     order: int
     question: str
     options: list[str]
+    activity: str = "CHOICE"
+    scene: str = ""
 
     @classmethod
     def from_entity(cls, q: QuizQuestion) -> "QuestionOut":
-        return cls(slug=q.slug, order=q.order, question=q.question, options=q.options)
+        return cls(
+            slug=q.slug,
+            order=q.order,
+            question=q.question,
+            options=q.options,
+            activity=q.activity,
+            scene=q.scene,
+        )
 
 
 class AnswerIn(BaseModel):
     question_slug: str
-    answer_index: int = Field(ge=0, le=5)
+    answer_index: int | None = Field(default=None, ge=0, le=5)
+    answer_value: int | None = Field(default=None, ge=0, le=100)
 
 
 class AnswerOut(BaseModel):

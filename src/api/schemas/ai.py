@@ -116,6 +116,7 @@ class QuizOut(BaseModel):
     kind: str
     source: str
     rewarded: bool
+    answered: list[int]
     questions: list[QuizQuestionOut]
 
     @classmethod
@@ -124,6 +125,7 @@ class QuizOut(BaseModel):
             kind=view.kind,
             source=view.source,
             rewarded=view.rewarded,
+            answered=view.answered,
             questions=[
                 QuizQuestionOut(index=q.index, question=q.question, options=q.options)
                 for q in view.questions

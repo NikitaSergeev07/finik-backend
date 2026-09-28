@@ -18,6 +18,7 @@ from domain.entities import (
     Week,
 )
 from domain.enums import Category, EventMode
+from infrastructure.content.catalog import QUESTION_ACTIVITY
 from infrastructure.db.models import (
     ActionLogRow,
     BadgeDefRow,
@@ -209,6 +210,7 @@ def task_def_from_row(row: TaskDefRow) -> TaskDef:
 
 
 def question_from_row(row: QuizQuestionRow) -> QuizQuestion:
+    activity, scene = QUESTION_ACTIVITY.get(row.slug, ("CHOICE", ""))
     return QuizQuestion(
         row.slug,
         row.lesson_slug,
@@ -217,6 +219,8 @@ def question_from_row(row: QuizQuestionRow) -> QuizQuestion:
         list(row.options),
         row.right_index,
         row.explanation,
+        activity,
+        scene,
     )
 
 

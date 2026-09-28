@@ -1,16 +1,19 @@
 """Задания недели: список с прогрессом, ответ на вопрос урока, получение награды."""
 
+import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from uuid import UUID
 
 from application.dto import GameState
 from application.ports import UnitOfWork
+from application.use_cases import learning
 from application.use_cases._common import load_state
 from core.errors import NotFound, RuleViolation
 from domain.entities import LogEntry, QuizQuestion, TaskDef, TaskProgress
 from domain.enums import ActionKind, TaskKind
 from domain.services import tasks as task_rules
+from domain.services.adventure import STAGES
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,14 +32,28 @@ class AnswerResult:
     total: int
 
 
+def _solved_questions(progress: TaskProgress) -> tuple[list[str], bool]:
+    answered = list(progress.data.get("answered", []))  # type: ignore[arg-type]
+    if len(answered) == progress.progress:
+        return answered, False
+    # Older builds marked wrong attempts as answered. Restart those unfinished lessons.
+    progress.progress = 0
+    progress.data = {**progress.data, "answered": []}
+    progress.done_at = None
+    return [], True
+
+
 async def _facts(
-    uow: UnitOfWork, state: GameState, lesson_slug: str | None
+    uow: UnitOfWork, state: GameState, lesson_slug: str | None, adventure: bool = False
 ) -> task_rules.WeekFacts:
     week = state.week
     quiz_total = quiz_correct = 0
     if lesson_slug:
-        questions = await uow.tasks.list_questions(lesson_slug)
-        quiz_total = len(questions)
+        if adventure:
+            quiz_total = STAGES
+        else:
+            questions = await uow.tasks.list_questions(lesson_slug)
+            quiz_total = len(questions)
         progress = await uow.tasks.get_progress(state.player.id, week.id, lesson_slug)
         quiz_correct = progress.progress if progress else 0
     return task_rules.WeekFacts(
@@ -58,7 +75,9 @@ async def list_tasks(uow: UnitOfWork, player_id: UUID) -> list[TaskView]:
         for task in await uow.tasks.list_defs():
             scaled = task_rules.scale_task(task, state.week.number)
             lesson = scaled.slug if scaled.kind is TaskKind.LESSON else None
-            status = task_rules.evaluate(scaled, await _facts(uow, state, lesson))
+            status = task_rules.evaluate(
+                scaled, await _facts(uow, state, lesson, bool(scaled.params.get("adventure")))
+            )
             progress = await uow.tasks.get_progress(player_id, state.week.id, scaled.slug)
             views.append(TaskView(scaled, status, bool(progress and progress.rewarded_at)))
         return views
@@ -66,15 +85,28 @@ async def list_tasks(uow: UnitOfWork, player_id: UUID) -> list[TaskView]:
 
 async def list_questions(uow: UnitOfWork, player_id: UUID, lesson_slug: str) -> list[QuizQuestion]:
     async with uow:
-        await load_state(uow, player_id)
+        state = await load_state(uow, player_id)
         questions = await uow.tasks.list_questions(lesson_slug)
         if not questions:
             raise NotFound("Урок не найден")
-        return questions
+        progress = await uow.tasks.get_progress(player_id, state.week.id, lesson_slug)
+        solved = set()
+        if progress:
+            answered, reset = _solved_questions(progress)
+            solved = set(answered)
+            if reset:
+                await uow.tasks.upsert_progress(progress)
+                await uow.commit()
+        return [question for question in questions if question.slug not in solved]
 
 
 async def answer(
-    uow: UnitOfWork, player_id: UUID, lesson_slug: str, question_slug: str, index: int
+    uow: UnitOfWork,
+    player_id: UUID,
+    lesson_slug: str,
+    question_slug: str,
+    index: int | None,
+    value: int | None = None,
 ) -> AnswerResult:
     async with uow:
         state = await load_state(uow, player_id)
@@ -85,20 +117,38 @@ async def answer(
         progress = await uow.tasks.get_progress(
             player_id, state.week.id, lesson_slug
         ) or TaskProgress(player_id, state.week.id, lesson_slug)
-        answered: list[str] = list(progress.data.get("answered", []))  # type: ignore[arg-type]
+        answered, _ = _solved_questions(progress)
         if question_slug in answered:
             raise RuleViolation("На этот вопрос ты уже ответил")
-        correct = index == question.right_index
-        answered.append(question_slug)
-        progress.data = {**progress.data, "answered": answered}
+        if question.activity == "COINS" and value is not None:
+            expected = re.search(r"\d+", question.options[question.right_index])
+            if expected is None:
+                raise RuleViolation("Вопрос с монетами настроен неверно")
+            correct = value == int(expected.group())
+        elif index is not None and index < len(question.options):
+            correct = index == question.right_index
+        else:
+            raise RuleViolation("Выбери ответ")
         if correct:
+            answered.append(question_slug)
+            progress.data = {**progress.data, "answered": answered, "last_mistake": None}
             progress.progress += 1
+        else:
+            progress.data = {
+                **progress.data,
+                "last_mistake": {
+                    "question_slug": question_slug,
+                    "selected": value if question.activity == "COINS" else index,
+                },
+            }
         done = progress.progress >= len(questions)
         if done and progress.done_at is None:
             progress.done_at = datetime.now(UTC)
         await uow.tasks.upsert_progress(progress)
+        await learning.record_attempt(uow, player_id, lesson_slug, correct)
         await uow.commit()
-        return AnswerResult(correct, question.explanation, done, len(answered), len(questions))
+        explanation = question.explanation if correct else "Ответ пока не совпал. Спроси питомца."
+        return AnswerResult(correct, explanation, done, len(answered), len(questions))
 
 
 async def claim(uow: UnitOfWork, player_id: UUID, slug: str) -> GameState:
@@ -110,7 +160,9 @@ async def claim(uow: UnitOfWork, player_id: UUID, slug: str) -> GameState:
             raise NotFound("Задание не найдено")
         scaled = task_rules.scale_task(task, state.week.number)
         lesson = slug if scaled.kind is TaskKind.LESSON else None
-        status = task_rules.evaluate(scaled, await _facts(uow, state, lesson))
+        status = task_rules.evaluate(
+            scaled, await _facts(uow, state, lesson, bool(scaled.params.get("adventure")))
+        )
         if not status.done:
             raise RuleViolation("Задание ещё не выполнено")
         progress = await uow.tasks.get_progress(player_id, state.week.id, slug) or TaskProgress(

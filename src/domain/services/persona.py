@@ -1,4 +1,4 @@
-"""Голос ростка и заготовленные фразы. Работают без модели и задают тон ответам ИИ."""
+"""Голоса питомцев и заготовленные фразы для работы без модели."""
 
 import hashlib
 from collections.abc import Sequence
@@ -23,24 +23,30 @@ MOOD_RU: dict[Mood, str] = {
 
 SPECIES_RU: dict[Species, dict[str, str]] = {
     Species.FINIK: {
-        "title": "финиковая пальма",
+        "title": "лиса",
         "trait": "пьёт много воды",
-        "style": "спокойный и немного мечтательный",
+        "style": "хитрая и наблюдательная; любит находить умный путь к мечте",
     },
     Species.CACTUS: {
-        "title": "кактус",
-        "trait": "редко ест, терпит без полива",
-        "style": "короткий, суховатый, с тихой усмешкой",
+        "title": "хомяк",
+        "trait": "бережливый, редко просит еду",
+        "style": "запасливый и добрый; радуется монетам в копилке",
     },
     Species.SPARK: {
-        "title": "цветок-огонёк",
+        "title": "кот",
         "trait": "скучает быстрее и любит игры",
-        "style": "живой, тёплый, чуть непоседливый",
+        "style": "игривый и любопытный; иногда мурлычет, но помнит план",
     },
 }
 
 REDIRECT = "Давай лучше про монеты и копилку. Что отложишь сегодня, а что подождёт?"
-CHAT_TIRED = "Я уже наболтался за сегодня. Завтра снова поговорим — и про мечту тоже."
+CHAT_TIRED = "Я уже наболтался за сегодня. Завтра снова поговорим - и про мечту тоже."
+
+VOICE_OPENING: dict[Species, str] = {
+    Species.FINIK: "Лисья хитрость подсказывает мне: ",
+    Species.CACTUS: "Мои хомячьи запасы говорят: ",
+    Species.SPARK: "Мур, я прикинул: ",
+}
 
 
 def pick(items: Sequence[str], seed: str) -> str:
@@ -60,15 +66,15 @@ def remark_fallback(pet: Pet, week: Week, goal: Goal | None = None) -> str:
     save_left = week.entry(Category.SAVE).left
     name = pet.name
     if pet.mood is Mood.HAPPY:
-        return pick(
+        return VOICE_OPENING[pet.species] + pick(
             (
                 f"{name} доволен: воды и еды хватает. Можно ещё {save_left} в копилку на мечту.",
-                f"{name}: мне хорошо. Если останутся монеты — спрячем в мечту, не в игрушки.",
+                f"{name}: мне хорошо. Если останутся монеты - спрячем в мечту, не в игрушки.",
             ),
             seed,
         )
     if pet.mood is Mood.OKAY:
-        return pick(
+        return VOICE_OPENING[pet.species] + pick(
             (
                 f"{name} в порядке. Глянь статью «{low}»: там запас тоньше остальных.",
                 f"{name}: день {week.day} из 7. Я держусь, но «{low}» скоро попросит монет.",
@@ -76,15 +82,15 @@ def remark_fallback(pet: Pet, week: Week, goal: Goal | None = None) -> str:
             seed,
         )
     if pet.mood is Mood.BORED:
-        return pick(
+        return VOICE_OPENING[pet.species] + pick(
             (
-                f"{name} скучает. Проверь, в какой статье остались монеты — особенно «{low}».",
-                f"{name} скучает. Если в плане ещё есть монеты на «{low}» — самое время.",
+                f"{name} скучает. Проверь, в какой статье остались монеты - особенно «{low}».",
+                f"{name} скучает. Если в плане ещё есть монеты на «{low}» - самое время.",
             ),
             seed,
         )
     saved = f", в мечте уже {goal.saved}" if goal else ""
-    return pick(
+    return VOICE_OPENING[pet.species] + pick(
         (
             f"{name} грустит: «{low}» на нуле. Сначала уход, копилка подождёт{saved}.",
             f"{name} плохо без «{low}». Давай сначала план, потом покупки.",
@@ -99,7 +105,7 @@ def week_summary_fallback(week: Week, goal: Goal) -> str:
     if week.overrun:
         return (
             f"Неделя {week.number}: план {week.income}, на уход ушло {spent_needs}, "
-            f"в мечту {saved}. Был перерасход {week.overrun} — копилка стала тоньше, "
+            f"в мечту {saved}. Был перерасход {week.overrun} - копилка стала тоньше, "
             f"но мечта «{goal.title}» всё ещё с нами."
         )
     if saved * 5 >= week.income:
@@ -109,13 +115,16 @@ def week_summary_fallback(week: Week, goal: Goal) -> str:
         )
     return (
         f"Неделя {week.number}: потратили {spent_needs}, отложили {saved}. "
-        f"В следующий раз можно чуть больше спрятать в копилку — мечта не убежит."
+        f"В следующий раз можно чуть больше спрятать в копилку - мечта не убежит."
     )
 
 
 def diary_fallback(pet: Pet, day: int, entries: list[LogEntry]) -> str:
     if not entries:
-        return f"День {day}. Я просто рос и ждал тебя. Завтра польём и чуть отложим в мечту."
+        return (
+            f"День {day}. {VOICE_OPENING[pet.species]}сегодня мы отдыхали. "
+            "Завтра проверим план и добавим монету к мечте."
+        )
     bits: list[str] = []
     if any(e.kind is ActionKind.CARE for e in entries):
         bits.append("ты за мной ухаживал")
@@ -128,7 +137,7 @@ def diary_fallback(pet: Pet, day: int, entries: list[LogEntry]) -> str:
     if any(e.kind is ActionKind.EVENT_CHOICE for e in entries):
         bits.append("случилась история")
     body = ", ".join(bits) if bits else "день прошёл тихо"
-    return f"День {day}. {pet.name} пишет: {body}. Я это запомню."
+    return f"День {day}. {pet.name} пишет: {VOICE_OPENING[pet.species]}{body}. Я это запомню."
 
 
 def dream_steps(goal: Goal, weekly_save: int) -> tuple[int, int, list[tuple[str, int]]]:
@@ -137,19 +146,19 @@ def dream_steps(goal: Goal, weekly_save: int) -> tuple[int, int, list[tuple[str,
     weekly = max(1, weekly_save)
     weeks_left = 0 if remain == 0 else (remain + weekly - 1) // weekly
     if remain == 0:
-        return remain, weekly, [("Мечта собрана — можно выбирать покупку", 0)]
+        return remain, weekly, [("Мечта собрана - можно выбирать покупку", 0)]
     first = min(weekly, remain)
     steps = [("На этой неделе отложи в копилку", first)]
     rest = remain - first
     if rest:
         more = max(weeks_left - 1, 1)
         steps.append((f"Повтори ещё {more} нед.", rest))
-    steps.append(("Когда копилка дотянет — купи мечту", 0))
+    steps.append(("Когда копилка дотянет - купи мечту", 0))
     return remain, weekly, steps
 
 
 def dream_speedup(play_planned: int, remain: int, weekly_save: int) -> tuple[int, int, int]:
-    """Если урезать игры на DREAM_SPEEDUP_CUT и добавить в копилку — на сколько недель раньше."""
+    """Если урезать игры на DREAM_SPEEDUP_CUT и добавить в копилку - на сколько недель раньше."""
     cut = min(rules.DREAM_SPEEDUP_CUT, max(0, play_planned))
     weekly = max(1, weekly_save)
     if remain <= 0 or cut <= 0:
@@ -172,12 +181,12 @@ def dream_advice_fallback(
         return f"«{goal.title}» уже в кармане. Можно радоваться и не тратить копилку впустую."
     text = (
         f"До «{goal.title}» осталось {goal.target - goal.saved} монет. "
-        f"По {max(1, weekly_save)} в неделю — это примерно {weeks_left} нед. "
+        f"По {max(1, weekly_save)} в неделю - это примерно {weeks_left} нед. "
         "Главное не забирать из копилки на игрушки."
     )
     if weeks_saved:
         return (
-            f"{text} Если урезать игры на {cut} и добавить в копилку — "
+            f"{text} Если урезать игры на {cut} и добавить в копилку - "
             f"на {weeks_saved} нед. раньше."
         )
     if cut:
@@ -187,32 +196,26 @@ def dream_advice_fallback(
 
 _ORIGIN: dict[Species, tuple[str, str, str]] = {
     Species.FINIK: (
-        "{name} — молодая финиковая пальма. Ему всегда хочется пить, "
-        "поэтому вода в плане важнее игрушек.",
-        "Семья посадила его в маленький горшок и пообещала: "
-        "копилка копится на большое солнечное окно.",
-        "Каждую неделю {name} учится раскладывать монеты: "
-        "сначала нужды, потом мечта, и только потом желания.",
+        "{name} - молодая лиса. Она нашла пустую шкатулку "
+        "и решила наполнить её монетами для мечты.",
+        "Лиса любит воду после прогулок и замечает, какая покупка может подождать.",
+        "Теперь {name} учится хитрому плану: сначала нужное, "
+        "потом копилка, а развлечения - на остаток.",
     ),
     Species.CACTUS: (
-        "{name} — кактус, который редко просит еду и терпит без лишнего полива. "
-        "Уход выходит дешевле.",
-        "Его принесли с ярмарки в крошечном горшке. Мечта та же — место у окна, "
-        "только копилка растёт спокойнее.",
-        "{name} любит короткие решения: не хватает монет — подожди, не бери из мечты.",
+        "{name} - хомяк, который нашёл красивую пустую коробочку и назвал её копилкой.",
+        "Он бережёт запасы и радуется каждой монете для мечты.",
+        "Если монет не хватает, {name} ждёт неделю, а не забирает из копилки.",
     ),
     Species.SPARK: (
-        "{name} — цветок-огонёк. Он скучает быстрее других и радуется играм, "
-        "но копилку не отдаёт за скуку.",
-        "Искра появилась в доме, когда кто-то отложил первые монеты «на потом». "
-        "С тех пор мечта светится тише игрушек.",
-        "За остаток игр {name} иногда возвращает монетку: "
-        "редкий росток помнит, что не всё нужно тратить.",
+        "{name} - кот, который увидел блестящую монету и придумал большую мечту.",
+        "Играть он готов весь день, но все монеты на забавы тратить скучно: мечта не приблизится.",
+        "Теперь {name} мурлычет над планом и оставляет часть монет в копилке каждую неделю.",
     ),
 }
 
 
 def origin_fallback(species: Species, name: str) -> str:
-    """Три коротких абзаца истории. Без модели — тот же тон, что у живого ответа."""
+    """Три коротких абзаца истории. Без модели - тот же тон, что у живого ответа."""
     parts = _ORIGIN[species]
     return "\n\n".join(part.format(name=name) for part in parts)

@@ -18,9 +18,9 @@ from application.use_cases import ai as use_ai
 router = APIRouter(prefix="/ai", tags=["ИИ"])
 
 
-@router.get("/remark", response_model=RemarkOut, summary="Реплика ростка")
+@router.get("/remark", response_model=RemarkOut, summary="Реплика питомца")
 async def remark(player_id: PlayerIdDep, uow: UowDep, llm: LlmDep) -> RemarkOut:
-    """Короткая фраза по настроению и плану. Без модели — заготовка того же тона."""
+    """Короткая фраза по настроению и плану. Без модели - заготовка того же тона."""
     return RemarkOut.from_ai(await use_ai.remark(uow, llm, player_id))
 
 
@@ -36,7 +36,7 @@ async def word_of_day(player_id: PlayerIdDep, uow: UowDep, llm: LlmDep) -> WordO
     return WordOut.from_card(await use_ai.word_of_day(uow, llm, player_id))
 
 
-@router.get("/diary", response_model=StoryOut, summary="Дневник ростка за сегодня")
+@router.get("/diary", response_model=StoryOut, summary="Дневник питомца за сегодня")
 async def diary(player_id: PlayerIdDep, uow: UowDep, llm: LlmDep) -> StoryOut:
     return StoryOut.from_ai(await use_ai.diary(uow, llm, player_id))
 
@@ -47,7 +47,7 @@ async def dream_plan(player_id: PlayerIdDep, uow: UowDep, llm: LlmDep) -> DreamP
     return DreamPlanOut.from_view(await use_ai.dream_plan(uow, llm, player_id))
 
 
-@router.get("/origin", response_model=OriginOut, summary="История ростка")
+@router.get("/origin", response_model=OriginOut, summary="История питомца")
 async def origin(player_id: PlayerIdDep, uow: UowDep, llm: LlmDep) -> OriginOut:
     """Три абзаца после знакомства. Кэш общий по имени и виду."""
     return OriginOut.from_ai(await use_ai.origin(uow, llm, player_id))
@@ -71,7 +71,18 @@ async def quiz_answer(body: QuizAnswerIn, player_id: PlayerIdDep, uow: UowDep) -
     )
 
 
-@router.post("/chat", response_model=ChatOut, summary="Спросить ростка")
+@router.get("/quiz/explain", response_model=StoryOut, summary="Объяснить ответ другим способом")
+async def quiz_explain(
+    player_id: PlayerIdDep,
+    uow: UowDep,
+    llm: LlmDep,
+    index: int = Query(ge=0, le=5),
+    kind: str = Query(default="quiz", pattern="^(quiz|riddle)$"),
+) -> StoryOut:
+    return StoryOut.from_ai(await use_ai.explain_quiz(uow, llm, player_id, index, kind))
+
+
+@router.post("/chat", response_model=ChatOut, summary="Спросить питомца")
 async def chat(body: ChatIn, player_id: PlayerIdDep, uow: UowDep, llm: LlmDep) -> ChatOut:
     """Стоплист на входе, лимит реплик на игровой день. Чужие темы мягко сворачиваются."""
     return ChatOut.from_ai(await use_ai.chat(uow, llm, player_id, body.text))

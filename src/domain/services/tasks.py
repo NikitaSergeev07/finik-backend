@@ -49,7 +49,10 @@ def evaluate(task: TaskDef, facts: WeekFacts) -> TaskStatus:
         case (TaskKind.LESSON, _):
             total = max(facts.quiz_total, 1)
             return TaskStatus(
-                facts.quiz_correct, total, facts.quiz_correct >= total, f"{total} вопроса"
+                facts.quiz_correct,
+                total,
+                facts.quiz_correct >= total,
+                f"{facts.quiz_correct} из {total} шагов",
             )
         case (TaskKind.WEEK, TaskTarget.GOAL):
             need = int(task.params.get("amount", 10))

@@ -2,9 +2,10 @@
 
 from uuid import uuid4
 
-from domain.entities import Goal, LogEntry, Pet, PlanEntry, Week
+from application import ai_prompts
+from domain.entities import Goal, LogEntry, Pet, PlanEntry, ShopItem, Week
 from domain.enums import ActionKind, Category, Species
-from domain.services import persona, safety, words
+from domain.services import persona, quiz, safety, words
 
 
 def _world(mood_needs: int = 70) -> tuple[Pet, Week, Goal]:
@@ -61,6 +62,10 @@ def test_safety_blocks_cards_urls_and_abuse():
     assert safety.is_blocked("это просто блядство")
     assert not safety.is_blocked("как накопить на горшок?")
     assert not safety.is_blocked("сколько отложить в копилку")
+    assert not safety.is_blocked("как защитить пароль?")
+    assert safety.is_blocked("мой пароль qwerty123")
+    assert safety.is_off_topic("Какая сегодня погода?")
+    assert not safety.is_off_topic("Сколько монет стоит билет на футбол?")
 
 
 def test_sanitize_cuts_markdown_and_length():
@@ -68,6 +73,10 @@ def test_sanitize_cuts_markdown_and_length():
     assert "*" not in text and text.startswith("Привет")
     long = safety.sanitize("монета " * 80, limit=40, sentences=None)
     assert len(long) <= 41
+    assert "\u2014" not in safety.sanitize("Запас \u2014 это помощь при поломке")
+    assert safety.sanitize("Первый.\n\nВторой.\n\nТретий.", preserve_paragraphs=True).count(
+        "\n\n"
+    ) == 2
 
 
 def test_diary_mentions_care():
@@ -85,6 +94,28 @@ def test_origin_has_three_paragraphs():
     assert len(parts) == 3 and "Кустик" in text
 
 
+def test_species_have_distinct_voices_and_matching_stories():
+    voices = [ai_prompts.voice_rules(species) for species in Species]
+    assert len(set(voices)) == len(voices)
+    for species in Species:
+        title = persona.SPECIES_RU[species]["title"]
+        assert title in ai_prompts.voice_rules(species)
+        assert title in persona.origin_fallback(species, "Друг")
+
+
 def test_dream_speedup_uses_server_math():
     cut, faster, saved = persona.dream_speedup(4, 150, 8)
     assert cut == 2 and faster == 10 and saved == 4
+
+
+def test_riddle_asks_for_saved_coins_and_server_checks_answer():
+    items = [
+        ShopItem("ball", "Мяч", Category.PLAY, 8, 11, "ball"),
+        ShopItem("food", "Корм", Category.FOOD, 4, None, "food"),
+    ]
+    riddle = quiz.build_questions(items, "riddle", "fixed")[0]
+    price_quiz = quiz.build_questions(items, "quiz", "fixed")[0]
+    assert riddle.options[riddle.right_index] == "3"
+    assert "монет" in riddle.question
+    assert price_quiz.options[price_quiz.right_index] == "27%"
+    assert "Примерно" in price_quiz.question

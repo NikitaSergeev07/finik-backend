@@ -180,6 +180,8 @@ class QuizQuestion:
     options: list[str]
     right_index: int
     explanation: str
+    activity: str = "CHOICE"
+    scene: str = ""
 
 
 @dataclass(slots=True)

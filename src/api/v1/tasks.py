@@ -1,9 +1,10 @@
 from fastapi import APIRouter
 
-from api.deps import PlayerIdDep, UowDep
+from api.deps import LlmDep, PlayerIdDep, UowDep
 from api.schemas.content import AnswerIn, AnswerOut, QuestionOut, TaskOut
 from api.schemas.game import StateOut
-from application.use_cases import tasks
+from api.schemas.learning import HintIn, HintOut
+from application.use_cases import learning, tasks
 
 router = APIRouter(prefix="/tasks", tags=["Задания"])
 
@@ -23,10 +24,24 @@ async def questions(slug: str, player_id: PlayerIdDep, uow: UowDep) -> list[Ques
 async def answer_question(
     slug: str, body: AnswerIn, player_id: PlayerIdDep, uow: UowDep
 ) -> AnswerOut:
-    result = await tasks.answer(uow, player_id, slug, body.question_slug, body.answer_index)
+    result = await tasks.answer(
+        uow,
+        player_id,
+        slug,
+        body.question_slug,
+        body.answer_index,
+        body.answer_value,
+    )
     return AnswerOut.from_result(result)
 
 
 @router.post("/{slug}/claim", response_model=StateOut, summary="Забрать награду за задание")
 async def claim(slug: str, player_id: PlayerIdDep, uow: UowDep) -> StateOut:
     return StateOut.from_state(await tasks.claim(uow, player_id, slug))
+
+
+@router.post("/{slug}/hint", response_model=HintOut, summary="Подсказка после ошибки")
+async def lesson_hint(
+    slug: str, body: HintIn, player_id: PlayerIdDep, uow: UowDep, llm: LlmDep
+) -> HintOut:
+    return HintOut.from_view(await learning.hint(uow, llm, player_id, slug, body.question_slug))

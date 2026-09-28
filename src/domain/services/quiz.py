@@ -17,7 +17,7 @@ class PriceQuestion:
 
 
 def build_questions(items: list[ShopItem], kind: str, seed: str) -> list[PriceQuestion]:
-    """1–3 вопроса из текущих цен. kind: quiz | riddle — только формулировка."""
+    """1–3 вопроса из текущих цен. kind: quiz | riddle - только формулировка."""
     priced = sorted((i for i in items if i.cost > 0), key=lambda i: i.slug)
     if len(priced) < 2:
         return []
@@ -43,35 +43,43 @@ def _q_discount(
         return None
     item = pick(sale, seed)
     assert item.old_cost is not None
-    pct = item.sale_percent
-    question = (
-        f"Я стоил {item.old_cost} монет, а сегодня просят только {item.cost}. "
-        f"На сколько процентов я подешевел?"
-        if riddle
-        else (
-            f"{item.name} стоил {item.old_cost}, сейчас {item.cost}. "
-            "Сколько это скидка в процентах?"
-        )
-    )
-    options, right = _three(pct, seed, suffix="%")
     diff = item.old_cost - item.cost
-    explain = f"{item.name}: {item.old_cost} − {item.cost} = {diff}, это {pct}%."
+    if riddle:
+        question = (
+            f"Я стоил {item.old_cost} монет, а теперь стою {item.cost}. "
+            "Сколько монет ты сохранишь для мечты?"
+        )
+        options, right = _three(diff, seed, suffix="")
+        explain = f"{item.old_cost} - {item.cost} = {diff}. Столько монет остаётся у тебя."
+    else:
+        pct = item.sale_percent
+        question = (
+            f"Товар «{item.name}»: старая цена {item.old_cost}, новая {item.cost}. "
+            "Примерно сколько это скидка в процентах?"
+        )
+        options, right = _three(pct, seed, suffix="%")
+        explain = f"{item.name}: {item.old_cost} - {item.cost} = {diff}, это примерно {pct}%."
     return question, options, right, explain
 
 
 def _q_how_many(
     items: list[ShopItem], riddle: bool, seed: str
 ) -> tuple[str, list[str], int, str] | None:
-    cheap = min(items, key=lambda i: (i.cost, i.slug))
-    expensive = max(items, key=lambda i: (i.cost, i.slug))
-    if expensive.cost <= cheap.cost:
+    pairs = [
+        (cheap, expensive)
+        for cheap in items
+        for expensive in items
+        if cheap.slug != expensive.slug and expensive.cost >= cheap.cost * 2
+    ]
+    if not pairs:
         return None
+    cheap, expensive = _choose(pairs, seed)
     n = expensive.cost // cheap.cost
     question = (
         f"Сколько «{cheap.name}» спрячется в цене «{expensive.name}»?"
         if riddle
         else (
-            f"«{expensive.name}» стоит {expensive.cost}, «{cheap.name}» — {cheap.cost}. "
+            f"«{expensive.name}» стоит {expensive.cost}, «{cheap.name}» - {cheap.cost}. "
             f"Сколько дешёвых вещей выйдет на одну дорогую?"
         )
     )
@@ -84,9 +92,10 @@ def _q_how_many(
 def _q_sum(
     items: list[ShopItem], riddle: bool, seed: str
 ) -> tuple[str, list[str], int, str] | None:
-    a, b = items[0], items[1]
-    if a.slug == b.slug:
+    pairs = [(a, b) for index, a in enumerate(items) for b in items[index + 1 :]]
+    if not pairs:
         return None
+    a, b = _choose(pairs, seed)
     total = a.cost + b.cost
     question = (
         f"Две покупки: {a.name} и {b.name}. Сколько монет на обе?"
@@ -115,3 +124,8 @@ def _three(right: int, seed: str, *, suffix: str) -> tuple[list[str], int]:
     ordered = values[shift:] + values[:shift]
     options = [f"{n}{suffix}" for n in ordered]
     return options, ordered.index(right)
+
+
+def _choose[T](items: list[T], seed: str) -> T:
+    index = int(hashlib.sha256(seed.encode()).hexdigest(), 16) % len(items)
+    return items[index]

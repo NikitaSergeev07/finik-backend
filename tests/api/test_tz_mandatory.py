@@ -108,4 +108,11 @@ async def test_six_tasks_three_themes(client: AsyncClient):
     tasks = (await client.get("/api/v1/tasks", headers=h)).json()
     slugs = {t["slug"] for t in tasks}
     assert len(tasks) >= 6
-    assert {"food_plan", "save_10", "buy_sale", "buy_need", "lesson_discount", "lesson_need_want"} <= slugs
+    assert {
+        "food_plan",
+        "save_10",
+        "buy_sale",
+        "buy_need",
+        "lesson_discount",
+        "lesson_need_want",
+    } <= slugs

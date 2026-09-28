@@ -56,13 +56,28 @@ async def test_lesson_quiz(client: AsyncClient):
         headers=h,
         json={"question_slug": qs[0]["slug"], "answer_index": 0},
     )
-    assert r.json()["correct"] is False and "4" in r.json()["explanation"]
+    assert r.json()["correct"] is False
+    assert "6 монет" not in r.json()["explanation"]
+    hint = await client.post(
+        "/api/v1/tasks/lesson_discount/hint",
+        headers=h,
+        json={"question_slug": qs[0]["slug"]},
+    )
+    assert hint.status_code == 200 and hint.json()["text"]
+    assert "6 монет" not in hint.json()["text"]
     r = await client.post(
         "/api/v1/tasks/lesson_discount/answer",
         headers=h,
         json={"question_slug": qs[0]["slug"], "answer_index": 1},
     )
-    assert r.status_code == 422  # повторно нельзя
+    assert r.status_code == 200 and r.json()["correct"] is True
+    assert len((await client.get("/api/v1/tasks/lesson_discount/questions", headers=h)).json()) == 2
+    r = await client.post(
+        "/api/v1/tasks/lesson_discount/answer",
+        headers=h,
+        json={"question_slug": qs[0]["slug"], "answer_index": 1},
+    )
+    assert r.status_code == 422  # верный ответ повторно не засчитывается
 
     for q, right in zip(qs[1:], (1, 0), strict=True):
         r = await client.post(
@@ -71,11 +86,11 @@ async def test_lesson_quiz(client: AsyncClient):
             json={"question_slug": q["slug"], "answer_index": right},
         )
         assert r.json()["correct"] is True
-    assert r.json()["lesson_done"] is False  # первый вопрос отвечен неверно
+    assert r.json()["lesson_done"] is True
 
     r = await client.get("/api/v1/tasks", headers=h)
     lesson = next(t for t in r.json() if t["slug"] == "lesson_discount")
-    assert lesson["progress"] == 2 and lesson["goal"] == 3
+    assert lesson["progress"] == 3 and lesson["goal"] == 3
 
 
 async def test_history_after_week(client: AsyncClient):
