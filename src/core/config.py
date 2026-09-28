@@ -1,6 +1,7 @@
 """Настройки приложения. Единственный источник конфигурации — переменные окружения."""
 
 from functools import lru_cache
+from typing import Literal
 
 from pydantic import PostgresDsn
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -26,10 +27,19 @@ class Settings(BaseSettings):
     gigachat_ca_bundle: str = "certs/russian_trusted_root_ca.pem"
     gigachat_timeout_seconds: float = 8.0
     parent_pin: str = "1234"
+    llm_provider: Literal["auto", "gigachat", "deepseek"] = "auto"
+    deepseek_api_key: str = ""
+    deepseek_api_url: str = "https://api.deepseek.com"
+    deepseek_model: str = "deepseek-chat"
+    deepseek_timeout_seconds: float = 20.0
 
     @property
     def gigachat_enabled(self) -> bool:
         return bool(self.gigachat_auth_key)
+
+    @property
+    def deepseek_enabled(self) -> bool:
+        return bool(self.deepseek_api_key)
 
     @property
     def gigachat_verify(self) -> bool | str:

@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 from api.router import api_router
 from core.config import get_settings
 from core.errors import AppError
+from infrastructure.ai.deepseek import DeepSeekGateway
 from infrastructure.ai.gateway import GigaChatGateway, build_llm
 
 
@@ -20,7 +21,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     try:
         yield
     finally:
-        if isinstance(llm, GigaChatGateway):
+        if isinstance(llm, (GigaChatGateway, DeepSeekGateway)):
             await llm.aclose()
 
 

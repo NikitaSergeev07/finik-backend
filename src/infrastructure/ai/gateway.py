@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 
 from core.config import Settings
+from infrastructure.ai.deepseek import DeepSeekGateway
 from infrastructure.ai.gigachat import GigaChatClient, GigaChatError, Message
 
 log = logging.getLogger(__name__)
@@ -53,7 +54,15 @@ class GigaChatGateway:
         await self._client.aclose()
 
 
-def build_llm(settings: Settings) -> SilentLlm | GigaChatGateway:
-    if not settings.gigachat_enabled:
+def build_llm(settings: Settings) -> SilentLlm | GigaChatGateway | DeepSeekGateway:
+    if settings.llm_provider == "deepseek":
+        return DeepSeekGateway(settings) if settings.deepseek_enabled else SilentLlm()
+    if settings.llm_provider == "gigachat":
+        if settings.gigachat_enabled:
+            return GigaChatGateway(GigaChatClient(settings))
         return SilentLlm()
-    return GigaChatGateway(GigaChatClient(settings))
+    if settings.gigachat_enabled:
+        return GigaChatGateway(GigaChatClient(settings))
+    if settings.deepseek_enabled:
+        return DeepSeekGateway(settings)
+    return SilentLlm()

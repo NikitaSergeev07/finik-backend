@@ -135,7 +135,13 @@ def week_to_row(week: Week, row: WeekRow | None = None) -> WeekRow:
 
 def goal_from_row(row: GoalRow) -> Goal:
     return Goal(
-        row.id, row.player_id, row.title, row.target, row.saved, row.achieved_at, row.catalog_slug or ""
+        row.id,
+        row.player_id,
+        row.title,
+        row.target,
+        row.saved,
+        row.achieved_at,
+        row.catalog_slug or "",
     )
 
 
