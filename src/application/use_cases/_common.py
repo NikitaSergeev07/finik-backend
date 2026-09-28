@@ -5,6 +5,7 @@ from uuid import UUID
 from application.dto import GameState
 from application.ports import UnitOfWork
 from core.errors import NotFound
+from domain.enums import ActionKind
 
 
 async def load_state(uow: UnitOfWork, player_id: UUID) -> GameState:
@@ -16,4 +17,17 @@ async def load_state(uow: UnitOfWork, player_id: UUID) -> GameState:
     goal = await uow.goals.get_active(player_id)
     if pet is None or week is None or goal is None:
         raise NotFound("Питомец ещё не создан. Пройди знакомство")
-    return GameState(player, pet, week, goal)
+    income = await uow.log.latest(player_id, ActionKind.INCOME)
+    purchase = await uow.log.latest(player_id, ActionKind.PURCHASE)
+    owned = tuple(await uow.shop.list_owned_slugs(player_id))
+    return GameState(
+        player,
+        pet,
+        week,
+        goal,
+        last_income=income.amount if income else week.income,
+        last_income_note=income.note if income else f"Пришёл доход {week.income}",
+        last_purchase_note=purchase.note if purchase else "",
+        last_purchase_amount=purchase.amount if purchase else 0,
+        owned_cosmetics=owned,
+    )

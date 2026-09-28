@@ -31,7 +31,13 @@ async def today(uow: UnitOfWork, player_id: UUID) -> EventView | None:
         instance = await uow.events.get_for_day(player_id, week.id, week.day)
         if instance is None:
             seed = f"{player_id}:{week.number}:{week.day}"
-            definition = event_rules.pick_event(await uow.events.list_defs(), week.number, seed)
+            definition = event_rules.pick_event(
+                await uow.events.list_defs(),
+                week.number,
+                seed,
+                mode=state.player.event_mode,
+                blocked=event_rules.blocked_slugs(state.player, week.number),
+            )
             if definition is None:
                 return None
             instance = EventInstance(uuid4(), player_id, week.id, definition.slug, week.day)

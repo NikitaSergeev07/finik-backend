@@ -59,10 +59,37 @@ async def test_full_week(client: AsyncClient):
     assert body["week_finished"] and body["week_report"]["number"] == 1
     assert body["state"]["week"]["number"] == 2 and body["state"]["week"]["day"] == 1
     assert body["state"]["goal"]["saved"] == 16
-    assert body["state"]["free_coins"] == 40 + (14 + 4 + 6 - 2)
+    assert body["state"]["free_coins"] == 40 + (14 + 4 + 6 - 2) + 5
+    assert body["state"]["streak"]["count"] == 1
+    assert [d["done"] for d in body["state"]["streak"]["days"]] == [
+        True,
+        False,
+        False,
+        False,
+        False,
+        False,
+        False,
+    ]
 
     r = await client.post("/api/v1/goal/deposit", headers=h, json={"amount": 10})
     assert r.status_code == 200 and r.json()["goal"]["saved"] == 26
 
     r = await client.get("/api/v1/state")
     assert r.status_code == 401
+
+
+async def test_streak_fills_with_days(client: AsyncClient):
+    h = await login(client)
+    r = await client.post(
+        "/api/v1/pet", headers=h, json={"name": "Кустик", "species": "FINIK", "weekly_income": 40}
+    )
+    streak = r.json()["streak"]
+    assert streak["goal"] == 7 and streak["bonus"] == 5 and streak["count"] == 1
+    assert streak["days"][0] == {"label": "Пн", "done": True}
+    assert streak["days"][1]["done"] is False
+
+    await client.post("/api/v1/day/end", headers=h)
+    await client.post("/api/v1/day/end", headers=h)
+    streak = (await client.get("/api/v1/state", headers=h)).json()["streak"]
+    assert streak["count"] == 3
+    assert [d["done"] for d in streak["days"]] == [True, True, True, False, False, False, False]

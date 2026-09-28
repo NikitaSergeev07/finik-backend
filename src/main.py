@@ -1,11 +1,27 @@
 """Точка входа. Собирает приложение, вешает обработчик ошибок домена."""
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from api.router import api_router
 from core.config import get_settings
 from core.errors import AppError
+from infrastructure.ai.gateway import GigaChatGateway, build_llm
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    settings = get_settings()
+    llm = build_llm(settings)
+    app.state.llm = llm
+    try:
+        yield
+    finally:
+        if isinstance(llm, GigaChatGateway):
+            await llm.aclose()
 
 
 def create_app() -> FastAPI:
@@ -15,6 +31,7 @@ def create_app() -> FastAPI:
         version="0.1.0",
         description="Серверная часть детского приложения по финансовой грамотности.",
         docs_url="/docs" if settings.debug else None,
+        lifespan=lifespan,
     )
     app.include_router(api_router)
 

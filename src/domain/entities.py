@@ -5,7 +5,7 @@ from datetime import datetime
 from uuid import UUID
 
 from domain import rules
-from domain.enums import ActionKind, Category, Mood, Species, TaskKind, TaskTarget
+from domain.enums import ActionKind, Category, EventMode, Mood, Species, TaskKind, TaskTarget
 
 
 @dataclass(slots=True)
@@ -15,6 +15,9 @@ class Player:
     weekly_income: int
     free_coins: int
     sound_on: bool = True
+    event_mode: EventMode = EventMode.RANDOM
+    vaccinated_until: int = 0  # номер недели включительно; 0 — прививки нет
+    unlocked_shop: list[str] = field(default_factory=list)
 
 
 @dataclass(slots=True)
@@ -25,6 +28,9 @@ class Pet:
     species: Species
     xp: int
     needs: dict[Category, int]
+    look_variant: int = 0
+    equipped_pot: str = ""
+    equipped_accessory: str = ""
 
     @property
     def stage_index(self) -> int:
@@ -60,6 +66,9 @@ class Week:
     entries: dict[Category, PlanEntry]
     overrun: int = 0
     closed_at: datetime | None = None
+    summary_text: str | None = None
+    modifiers: dict[str, object] = field(default_factory=dict)
+    plan_confirmed: bool = False
 
     @property
     def planned_total(self) -> int:
@@ -81,6 +90,7 @@ class Goal:
     target: int
     saved: int
     achieved_at: datetime | None = None
+    catalog_slug: str = ""
 
     @property
     def percent(self) -> int:
@@ -114,6 +124,13 @@ class ShopItem:
     glyph: str
     restore: int = 0
     xp_bonus: int = 0
+    hidden: bool = False
+    slot: str = ""  # pot | accessory | "" — наряд, не расходник ухода
+
+    @property
+    def kind(self) -> str:
+        """NEED — обязательное (еда, вода), WANT — желаемое (игры)."""
+        return "NEED" if self.category in (Category.FOOD, Category.WATER) else "WANT"
 
     @property
     def is_sale(self) -> bool:

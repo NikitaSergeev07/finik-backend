@@ -13,10 +13,12 @@ async def get_profile(player_id: PlayerIdDep, uow: UowDep) -> ProfileOut:
     return ProfileOut.from_view(await profile.get_profile(uow, player_id))
 
 
-@router.patch("", response_model=StateOut, summary="Настройки: доход и звуки")
+@router.patch("", response_model=StateOut, summary="Настройки: доход, звуки, события")
 async def update_settings(body: SettingsIn, player_id: PlayerIdDep, uow: UowDep) -> StateOut:
     """Новый доход вступает в силу со следующей недели."""
-    state = await profile.update_settings(uow, player_id, body.weekly_income, body.sound_on)
+    state = await profile.update_settings(
+        uow, player_id, body.weekly_income, body.sound_on, body.event_mode
+    )
     return StateOut.from_state(state)
 
 

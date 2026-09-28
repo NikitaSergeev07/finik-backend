@@ -10,6 +10,12 @@ from domain.entities import QuizQuestion
 from domain.enums import Category, TaskKind, TaskTarget
 
 
+class TermOut(BaseModel):
+    word: str
+    meaning: str
+    example: str
+
+
 class ShopItemOut(BaseModel):
     slug: str
     name: str
@@ -20,6 +26,12 @@ class ShopItemOut(BaseModel):
     glyph: str
     left_in_category: int
     affordable: bool
+    restore: int = 0
+    xp_bonus: int = 0
+    kind: str = "NEED"
+    slot: str = ""
+    owned: bool = False
+    equipped: bool = False
 
     @classmethod
     def from_shelf(cls, s: ShelfItem) -> "ShopItemOut":
@@ -34,6 +46,12 @@ class ShopItemOut(BaseModel):
             glyph=i.glyph,
             left_in_category=s.left_in_category,
             affordable=s.affordable,
+            restore=i.restore,
+            xp_bonus=i.xp_bonus,
+            kind=i.kind,
+            slot=i.slot,
+            owned=s.owned,
+            equipped=s.equipped,
         )
 
 
@@ -144,6 +162,9 @@ class HistoryOut(BaseModel):
     weeks: list[HistoryWeekOut]
     last_report: list[ReportRowOut]
     last_summary: str
+    last_story: str | None = None
+    last_income: int = 0
+    last_purchase_note: str = ""
 
     @classmethod
     def from_weeks(cls, weeks: list[Week]) -> "HistoryOut":
@@ -159,7 +180,7 @@ class HistoryOut(BaseModel):
                     number=w.number, saved=saved, overrun=w.overrun, income=w.income, tone=tone
                 )
             )
-        rows, summary = [], ""
+        rows, summary, story = [], "", None
         if weeks:
             last = weeks[-1]
             rows = [
@@ -176,4 +197,12 @@ class HistoryOut(BaseModel):
                 f"План {last.income} · потрачено {spent} · "
                 f"отложено {last.entry(Category.SAVE).spent}"
             )
-        return cls(weeks=out, last_report=rows, last_summary=summary)
+            story = last.summary_text
+        last_income = weeks[-1].income if weeks else 0
+        return cls(
+            weeks=out,
+            last_report=rows,
+            last_summary=summary,
+            last_story=story,
+            last_income=last_income,
+        )

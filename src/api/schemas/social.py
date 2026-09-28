@@ -8,7 +8,7 @@ from api.schemas.game import StateOut
 from application.use_cases.badges import BadgeView
 from application.use_cases.events import ChoiceResult, EventView
 from application.use_cases.profile import ProfileView
-from domain.enums import Category
+from domain.enums import Category, EventMode
 
 
 class EventOptionOut(BaseModel):
@@ -86,8 +86,11 @@ class ProfileOut(BaseModel):
     earned_total: int
     saved_total: int
     weeks_done: int
+    tasks_done: int = 0
     weekly_income: int
     sound_on: bool
+    event_mode: EventMode
+    vaccinated_until: int
     income_options: list[int]
     state: StateOut
 
@@ -99,8 +102,11 @@ class ProfileOut(BaseModel):
             earned_total=v.earned_total,
             saved_total=v.saved_total,
             weeks_done=v.weeks_done,
+            tasks_done=v.tasks_done,
             weekly_income=v.state.player.weekly_income,
             sound_on=v.state.player.sound_on,
+            event_mode=v.state.player.event_mode,
+            vaccinated_until=v.state.player.vaccinated_until,
             income_options=list(rules.INCOME_OPTIONS),
             state=StateOut.from_state(v.state),
         )
@@ -109,3 +115,4 @@ class ProfileOut(BaseModel):
 class SettingsIn(BaseModel):
     weekly_income: int | None = None
     sound_on: bool | None = None
+    event_mode: EventMode | None = None

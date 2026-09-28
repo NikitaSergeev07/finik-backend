@@ -5,6 +5,7 @@ from typing import Self
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from infrastructure.db.repositories.sqlalchemy import (
+    AiCacheRepo,
     BadgeRepo,
     EventRepo,
     GoalRepo,
@@ -34,6 +35,7 @@ class SqlAlchemyUnitOfWork:
         self.tasks = TaskRepo(s)
         self.events = EventRepo(s)
         self.badges = BadgeRepo(s)
+        self.ai = AiCacheRepo(s)
         return self
 
     async def __aexit__(self, *exc: object) -> None:

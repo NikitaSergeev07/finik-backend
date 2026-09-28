@@ -41,7 +41,7 @@ async def test_scam_needs_free_coins(client: AsyncClient):
     """Без свободных монет мошеннику нечего переводить: правило не даёт уйти в минус."""
     h = await start(client)
     # Перебираем дни, пока не встретим мошенника: выбор детерминирован, но зависит от игрока.
-    for _ in range(14):
+    for _ in range(40):
         ev = (await client.get("/api/v1/events/today", headers=h)).json()
         if ev and ev["slug"] == "scam_message":
             free = (await client.get("/api/v1/state", headers=h)).json()["free_coins"]
@@ -94,3 +94,27 @@ async def test_reset_keeps_token(client: AsyncClient):
         "/api/v1/pet", headers=h, json={"name": "Снова", "species": "SPARK", "weekly_income": 20}
     )
     assert r.status_code == 201 and r.json()["pet"]["name"] == "Снова"
+
+
+async def test_event_mode_and_parent_bonus(client: AsyncClient):
+    h = await start(client)
+    r = await client.patch("/api/v1/profile", headers=h, json={"event_mode": "escalating"})
+    assert r.status_code == 200
+    p = (await client.get("/api/v1/profile", headers=h)).json()
+    assert p["event_mode"] == "escalating" and p["vaccinated_until"] == 0
+
+    r = await client.post(
+        "/api/v1/parent/bonus",
+        headers=h,
+        json={"amount": 5, "reason": "убрал игрушки", "pin": "0000"},
+    )
+    assert r.status_code == 422
+    r = await client.post(
+        "/api/v1/parent/bonus",
+        headers=h,
+        json={"amount": 5, "reason": "убрал игрушки", "pin": "1234"},
+    )
+    assert r.status_code == 200 and r.json()["amount"] == 5
+    assert r.json()["state"]["free_coins"] == 5
+    diary = (await client.get("/api/v1/ai/diary", headers=h)).json()
+    assert diary["text"]

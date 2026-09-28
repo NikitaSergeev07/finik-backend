@@ -10,6 +10,8 @@ SHOP_ITEMS = [
         glyph="CIRCLE",
         restore=45,
         xp_bonus=0,
+        hidden=False,
+        slot="",
     ),
     dict(
         slug="vitamins",
@@ -20,6 +22,8 @@ SHOP_ITEMS = [
         glyph="ROUNDED",
         restore=20,
         xp_bonus=2,
+        hidden=False,
+        slot="",
     ),
     dict(
         slug="food_week",
@@ -30,6 +34,8 @@ SHOP_ITEMS = [
         glyph="POT",
         restore=100,
         xp_bonus=0,
+        hidden=False,
+        slot="",
     ),
     dict(
         slug="ball",
@@ -40,6 +46,8 @@ SHOP_ITEMS = [
         glyph="CIRCLE",
         restore=25,
         xp_bonus=0,
+        hidden=False,
+        slot="",
     ),
     dict(
         slug="new_pot",
@@ -50,6 +58,32 @@ SHOP_ITEMS = [
         glyph="TALL_POT",
         restore=0,
         xp_bonus=10,
+        hidden=False,
+        slot="pot",
+    ),
+    dict(
+        slug="pot_blue",
+        name="Синий горшок",
+        category="PLAY",
+        cost=3,
+        old_cost=None,
+        glyph="POT",
+        restore=0,
+        xp_bonus=2,
+        hidden=False,
+        slot="pot",
+    ),
+    dict(
+        slug="pot_striped",
+        name="Полосатый горшок",
+        category="PLAY",
+        cost=4,
+        old_cost=None,
+        glyph="TALL_POT",
+        restore=0,
+        xp_bonus=3,
+        hidden=False,
+        slot="pot",
     ),
     dict(
         slug="watering_can",
@@ -60,6 +94,104 @@ SHOP_ITEMS = [
         glyph="BUCKET",
         restore=20,
         xp_bonus=5,
+        hidden=False,
+        slot="",
+    ),
+    dict(
+        slug="berry_treat",
+        name="Ягодный корм",
+        category="FOOD",
+        cost=4,
+        old_cost=None,
+        glyph="ROUNDED",
+        restore=35,
+        xp_bonus=1,
+        hidden=True,
+        slot="",
+    ),
+    dict(
+        slug="leaf_soap",
+        name="Мыло для листьев",
+        category="FOOD",
+        cost=5,
+        old_cost=None,
+        glyph="ROUNDED",
+        restore=15,
+        xp_bonus=0,
+        hidden=False,
+        slot="",
+    ),
+    dict(
+        slug="ribbon",
+        name="Ленточка",
+        category="PLAY",
+        cost=4,
+        old_cost=None,
+        glyph="CIRCLE",
+        restore=0,
+        xp_bonus=4,
+        hidden=False,
+        slot="accessory",
+    ),
+    dict(
+        slug="hat_leaf",
+        name="Шляпка-листик",
+        category="PLAY",
+        cost=3,
+        old_cost=None,
+        glyph="ROUNDED",
+        restore=0,
+        xp_bonus=2,
+        hidden=False,
+        slot="accessory",
+    ),
+    dict(
+        slug="glasses_round",
+        name="Круглые очки",
+        category="PLAY",
+        cost=3,
+        old_cost=None,
+        glyph="CIRCLE",
+        restore=0,
+        xp_bonus=2,
+        hidden=False,
+        slot="accessory",
+    ),
+    dict(
+        slug="scarf_knit",
+        name="Шарфик",
+        category="PLAY",
+        cost=2,
+        old_cost=None,
+        glyph="ROUNDED",
+        restore=0,
+        xp_bonus=1,
+        hidden=False,
+        slot="accessory",
+    ),
+    dict(
+        slug="charm_can",
+        name="Брелок-лейка",
+        category="PLAY",
+        cost=3,
+        old_cost=None,
+        glyph="BUCKET",
+        restore=0,
+        xp_bonus=2,
+        hidden=False,
+        slot="accessory",
+    ),
+    dict(
+        slug="sun_sticker",
+        name="Наклейка на горшок",
+        category="PLAY",
+        cost=2,
+        old_cost=None,
+        glyph="CIRCLE",
+        restore=0,
+        xp_bonus=2,
+        hidden=False,
+        slot="accessory",
     ),
 ]
 
@@ -104,6 +236,22 @@ TASK_DEFS = [
         reward=4,
         params={"count": 1},
     ),
+    dict(
+        slug="buy_need",
+        title="Купи обязательное: еду или воду",
+        kind="DAY",
+        target="SHOP",
+        reward=5,
+        params={"count": 1, "need": True},
+    ),
+    dict(
+        slug="lesson_need_want",
+        title="Мини-урок: нужда и желание",
+        kind="LESSON",
+        target="QUIZ",
+        reward=6,
+        params={},
+    ),
 ]
 
 QUIZ_QUESTIONS = [
@@ -133,6 +281,33 @@ QUIZ_QUESTIONS = [
         options=["Перерасход на 4", "Сэкономил 4", "Ничего"],
         right_index=0,
         explanation="Лишние 4 монеты придётся взять из другой статьи — чаще всего из копилки.",
+    ),
+    dict(
+        slug="q_need_1",
+        lesson_slug="lesson_need_want",
+        order=1,
+        question="Корм для ростка — это что?",
+        options=["Желаемое", "Обязательное", "Можно отложить"],
+        right_index=1,
+        explanation="Корм — нужда. Без еды ростку плохо, это обязательный расход.",
+    ),
+    dict(
+        slug="q_need_2",
+        lesson_slug="lesson_need_want",
+        order=2,
+        question="Мячик можно не брать сегодня. Как это называется?",
+        options=["Обязательное", "Желаемое", "Доход"],
+        right_index=1,
+        explanation="Мячик — желание. Его можно подождать, если монет мало.",
+    ),
+    dict(
+        slug="q_need_3",
+        lesson_slug="lesson_need_want",
+        order=3,
+        question="Монеты в копилку — это какое решение?",
+        options=["Потратить на желаемое", "Отложить, чтобы накопить", "Купить всё сразу"],
+        right_index=1,
+        explanation="Отложить — значит накопить на мечту. Эти монеты не тратят на игрушки.",
     ),
 ]
 
@@ -165,17 +340,24 @@ BADGE_DEFS = [
     ),
 ]
 
-# Варианты события: key, label и effects. effects: coins (свободные монеты), need {статья: дельта},
-# xp, mood_note. Логика применения появится вместе с эндпоинтами событий.
+# Варианты: coins, pay (свободные или копилка), cost, need, xp, note,
+# price_delta, sale_percent, vaccinate (недель защиты), unlock_shop.
 EVENT_DEFS = [
     dict(
         slug="sale_day",
         title="Распродажа в лавке",
         weight=3,
         min_week=1,
-        text="Сегодня в лавке скидки до 40%. Хороший момент запастись нужным, если оно в плане.",
+        text=("Сегодня в лавке скидки до 40%. Хороший момент запастись нужным, если оно в плане."),
         options=[
-            dict(key="look", label="Заглянуть в лавку", effects={}),
+            dict(
+                key="look",
+                label="Заглянуть в лавку",
+                effects={
+                    "sale_percent": 30,
+                    "note": "В лавке сегодня дешевле на 30%. Скидка до конца этой недели.",
+                },
+            ),
             dict(key="skip", label="Пройти мимо", effects={"xp": 2}),
         ],
     ),
@@ -187,7 +369,12 @@ EVENT_DEFS = [
         text="Поставщик поднял цены: корм на этой неделе стоит на 2 монеты дороже.",
         options=[
             dict(
-                key="ok", label="Понятно, буду внимательнее", effects={"price_delta": {"FOOD": 2}}
+                key="ok",
+                label="Понятно, буду внимательнее",
+                effects={
+                    "price_delta": {"FOOD": 2},
+                    "note": "Корм в лавке дороже на 2 монеты до конца недели.",
+                },
             ),
         ],
     ),
@@ -251,6 +438,147 @@ EVENT_DEFS = [
                 effects={"coins": -3, "need": {"PLAY": 15}, "xp": 3},
             ),
             dict(key="decline", label="Сейчас не могу", effects={}),
+        ],
+    ),
+    dict(
+        slug="crisis",
+        title="Неожиданный расход",
+        weight=2,
+        min_week=2,
+        text="Горшок треснул: срочно нужно 5 монет на заплату, иначе вода будет утекать.",
+        options=[
+            dict(
+                key="pay",
+                label="Заплатить 5",
+                effects={
+                    "pay": 5,
+                    "xp": 2,
+                    "note": "Заплату купили. Неприятно, зато росток в безопасности.",
+                },
+            ),
+            dict(
+                key="skip",
+                label="Подождать",
+                effects={
+                    "need": {"WATER": -15, "FOOD": -10},
+                    "xp": -3,
+                    "note": "Без заплаты день вышел тяжёлым. Иногда расход нельзя откладывать.",
+                },
+            ),
+        ],
+    ),
+    dict(
+        slug="new_food",
+        title="Новый корм в лавке",
+        weight=1,
+        min_week=1,
+        text="Привезли ягодный корм: вкусный, недорогой. Можно взять сразу или оставить в лавке.",
+        options=[
+            dict(
+                key="buy",
+                label="Купить сейчас за 4 из еды",
+                effects={
+                    "cost": {"FOOD": 4},
+                    "need": {"FOOD": 35},
+                    "unlock_shop": "berry_treat",
+                    "xp": 1,
+                    "note": "Ягодный корм куплен и теперь будет в лавке.",
+                },
+            ),
+            dict(
+                key="later",
+                label="Пусть стоит в лавке",
+                effects={
+                    "unlock_shop": "berry_treat",
+                    "note": "Ягодный корм появился на витрине. Купишь, когда будет в плане.",
+                },
+            ),
+            dict(key="skip", label="Не сейчас", effects={}),
+        ],
+    ),
+    dict(
+        slug="guests",
+        title="Пришли гости",
+        weight=2,
+        min_week=1,
+        text="Соседские ростки в гостях. Можно потратить 3 из игр на угощение — или отказаться.",
+        options=[
+            dict(
+                key="host",
+                label="Угостить за 3 из игр",
+                effects={
+                    "cost": {"PLAY": 3},
+                    "need": {"PLAY": 15},
+                    "xp": 2,
+                    "note": "Гостям было весело. Игры похудели, настроение выросло.",
+                },
+            ),
+            dict(
+                key="skip",
+                label="Не в этот раз",
+                effects={
+                    "need": {"PLAY": -10},
+                    "xp": -1,
+                    "note": "Гости ушли. Немного скучно, зато монеты на месте.",
+                },
+            ),
+        ],
+    ),
+    dict(
+        slug="vaccine",
+        title="Прививка для ростка",
+        weight=2,
+        min_week=1,
+        text="Можно заплатить 3 монеты сейчас — и болезнь на ближайшие недели не придёт.",
+        options=[
+            dict(
+                key="pay",
+                label="Привить за 3",
+                effects={
+                    "pay": 3,
+                    "vaccinate": 4,
+                    "xp": 2,
+                    "note": "Прививка сделана. Событие болезни не придёт ещё несколько недель.",
+                },
+            ),
+            dict(
+                key="skip",
+                label="Потом",
+                effects={
+                    "note": "Без прививки росток может приболеть в другой день. Это твой выбор.",
+                },
+            ),
+        ],
+    ),
+    dict(
+        slug="pyramid",
+        title="Пирамида «вернём втрое»",
+        weight=2,
+        min_week=2,
+        text="«Вложи 8 монет — через неделю вернём 20!» Это не копилка, а пирамида.",
+        options=[
+            dict(
+                key="invest",
+                label="Вложить 8 монет",
+                effects={
+                    "coins": -8,
+                    "xp": -5,
+                    "need": {"PLAY": -10},
+                    "note": (
+                        "Монеты пропали. Пирамида обещает много, а забирает твоё. "
+                        "Через неделю 20 не придут — так и задумано мошенниками."
+                    ),
+                },
+            ),
+            dict(
+                key="refuse",
+                label="Не вкладывать",
+                effects={
+                    "xp": 5,
+                    "coins": 2,
+                    "note": "Верно. Кто обещает вернуть втрое через неделю, забирает монеты.",
+                },
+            ),
         ],
     ),
 ]

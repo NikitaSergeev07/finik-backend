@@ -47,6 +47,7 @@ async def _facts(
         discount_purchases=await uow.shop.count_discount_purchases(state.player.id, week.id),
         deposits=await uow.log.sum_amount(state.player.id, week.id, ActionKind.DEPOSIT),
         week_closed=week.closed_at is not None,
+        need_purchases=await uow.shop.count_need_purchases(state.player.id, week.id),
     )
 
 
@@ -55,10 +56,11 @@ async def list_tasks(uow: UnitOfWork, player_id: UUID) -> list[TaskView]:
         state = await load_state(uow, player_id)
         views = []
         for task in await uow.tasks.list_defs():
-            lesson = task.slug if task.kind is TaskKind.LESSON else None
-            status = task_rules.evaluate(task, await _facts(uow, state, lesson))
-            progress = await uow.tasks.get_progress(player_id, state.week.id, task.slug)
-            views.append(TaskView(task, status, bool(progress and progress.rewarded_at)))
+            scaled = task_rules.scale_task(task, state.week.number)
+            lesson = scaled.slug if scaled.kind is TaskKind.LESSON else None
+            status = task_rules.evaluate(scaled, await _facts(uow, state, lesson))
+            progress = await uow.tasks.get_progress(player_id, state.week.id, scaled.slug)
+            views.append(TaskView(scaled, status, bool(progress and progress.rewarded_at)))
         return views
 
 
@@ -106,8 +108,9 @@ async def claim(uow: UnitOfWork, player_id: UUID, slug: str) -> GameState:
         task = await uow.tasks.get_def(slug)
         if task is None:
             raise NotFound("Задание не найдено")
-        lesson = slug if task.kind is TaskKind.LESSON else None
-        status = task_rules.evaluate(task, await _facts(uow, state, lesson))
+        scaled = task_rules.scale_task(task, state.week.number)
+        lesson = slug if scaled.kind is TaskKind.LESSON else None
+        status = task_rules.evaluate(scaled, await _facts(uow, state, lesson))
         if not status.done:
             raise RuleViolation("Задание ещё не выполнено")
         progress = await uow.tasks.get_progress(player_id, state.week.id, slug) or TaskProgress(
@@ -118,7 +121,7 @@ async def claim(uow: UnitOfWork, player_id: UUID, slug: str) -> GameState:
         now = datetime.now(UTC)
         progress.done_at = progress.done_at or now
         progress.rewarded_at = now
-        state.player.free_coins += task.reward
+        state.player.free_coins += scaled.reward
         await uow.tasks.upsert_progress(progress)
         await uow.log.add(
             LogEntry(
@@ -126,8 +129,8 @@ async def claim(uow: UnitOfWork, player_id: UUID, slug: str) -> GameState:
                 state.week.id,
                 state.week.day,
                 ActionKind.TASK_REWARD,
-                amount=task.reward,
-                note=f"Награда: {task.title}",
+                amount=scaled.reward,
+                note=f"Награда: {scaled.title}",
                 meta={"slug": slug},
             )
         )

@@ -7,6 +7,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 os.environ.setdefault("FINIK_DATABASE_URL", "postgresql+asyncpg://localhost:5432/finik_test")
+os.environ["FINIK_GIGACHAT_AUTH_KEY"] = ""
 
 from infrastructure.content.seed import seed
 from infrastructure.db import models  # noqa: F401

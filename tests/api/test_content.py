@@ -92,3 +92,10 @@ async def test_history_after_week(client: AsyncClient):
     food = next(row for row in body["last_report"] if row["category"] == "FOOD")
     assert food["actual"] == 3 and food["is_over"] is False
     assert body["last_summary"].startswith("План 40")
+
+
+async def test_hidden_item_absent_until_unlock(client: AsyncClient):
+    h = await start(client)
+    slugs = {i["slug"] for i in (await client.get("/api/v1/shop/items", headers=h)).json()}
+    assert "berry_treat" not in slugs
+    assert "ball" in slugs

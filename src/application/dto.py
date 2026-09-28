@@ -13,6 +13,11 @@ class GameState:
     pet: Pet
     week: Week
     goal: Goal
+    last_income: int = 0
+    last_income_note: str = ""
+    last_purchase_note: str = ""
+    last_purchase_amount: int = 0
+    owned_cosmetics: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

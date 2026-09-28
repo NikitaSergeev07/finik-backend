@@ -36,6 +36,9 @@ class PlayerRow(IdMixin, TimestampMixin, Base):
     weekly_income: Mapped[int] = mapped_column(Integer, default=40)
     free_coins: Mapped[int] = mapped_column(Integer, default=0)
     sound_on: Mapped[bool] = mapped_column(Boolean, default=True)
+    event_mode: Mapped[str] = mapped_column(String(16), default="random")
+    vaccinated_until: Mapped[int] = mapped_column(Integer, default=0)
+    unlocked_shop: Mapped[list[str]] = mapped_column(JSON, default=list)
 
     __table_args__ = (CheckConstraint("free_coins >= 0", name="free_coins_non_negative"),)
 
@@ -52,6 +55,9 @@ class PetRow(IdMixin, TimestampMixin, Base):
     need_food: Mapped[int] = mapped_column(Integer)
     need_water: Mapped[int] = mapped_column(Integer)
     need_play: Mapped[int] = mapped_column(Integer)
+    look_variant: Mapped[int] = mapped_column(Integer, default=0)
+    equipped_pot: Mapped[str] = mapped_column(String(40), default="")
+    equipped_accessory: Mapped[str] = mapped_column(String(40), default="")
 
 
 # --- недели и план ----------------------------------------------------------
@@ -68,6 +74,9 @@ class WeekRow(IdMixin, TimestampMixin, Base):
     day: Mapped[int] = mapped_column(Integer, default=1)
     overrun: Mapped[int] = mapped_column(Integer, default=0)
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    summary_text: Mapped[str | None] = mapped_column(Text)
+    modifiers: Mapped[dict[str, object]] = mapped_column(JSON, default=dict)
+    plan_confirmed: Mapped[bool] = mapped_column(Boolean, default=False)
 
     entries: Mapped[list["PlanEntryRow"]] = relationship(
         back_populates="week", cascade="all, delete-orphan", lazy="selectin"
@@ -104,6 +113,7 @@ class GoalRow(IdMixin, TimestampMixin, Base):
     target: Mapped[int] = mapped_column(Integer)
     saved: Mapped[int] = mapped_column(Integer, default=0)
     achieved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    catalog_slug: Mapped[str] = mapped_column(String(40), default="")
 
 
 class ActionLogRow(IdMixin, Base):
@@ -140,6 +150,8 @@ class ShopItemRow(Base):
     restore: Mapped[int] = mapped_column(Integer, default=0)
     xp_bonus: Mapped[int] = mapped_column(Integer, default=0)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
+    hidden: Mapped[bool] = mapped_column(Boolean, default=False)
+    slot: Mapped[str] = mapped_column(String(20), default="")
 
 
 class PurchaseRow(IdMixin, Base):
@@ -247,3 +259,19 @@ class EventInstanceRow(IdMixin, Base):
         DateTime(timezone=True), server_default="now()", nullable=False
     )
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class AiCacheRow(Base):
+    """Ответы модели по ключу контекста. Нужны, чтобы не платить дважды за одно и то же."""
+
+    __tablename__ = "ai_cache"
+
+    key: Mapped[str] = mapped_column(String(80), primary_key=True)
+    player_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("players.id", ondelete="CASCADE"), index=True
+    )
+    kind: Mapped[str] = mapped_column(String(24))
+    payload: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default="now()", nullable=False
+    )

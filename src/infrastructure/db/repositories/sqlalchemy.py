@@ -21,9 +21,10 @@ from domain.entities import (
     TaskProgress,
     Week,
 )
-from domain.enums import ActionKind
+from domain.enums import ActionKind, Category
 from infrastructure.db.models import (
     ActionLogRow,
+    AiCacheRow,
     BadgeDefRow,
     EventDefRow,
     EventInstanceRow,
@@ -62,7 +63,7 @@ class PlayerRepo:
 
     async def wipe_progress(self, player_id: UUID) -> None:
         # Журнал, покупки, прогресс и события уходят каскадом вслед за неделями и питомцем.
-        for model in (WeekRow, PetRow, GoalRow, PlayerBadgeRow):
+        for model in (WeekRow, PetRow, GoalRow, PlayerBadgeRow, AiCacheRow):
             await self._s.execute(delete(model).where(model.player_id == player_id))
 
 
@@ -108,6 +109,7 @@ class WeekRepo:
 
     async def add(self, week: Week) -> None:
         self._s.add(m.week_to_row(week))
+        await self._s.flush()
 
     async def save(self, week: Week) -> None:
         row = await self._s.get(WeekRow, week.id)
@@ -159,6 +161,28 @@ class LogRepo:
         )
         return int(await self._s.scalar(stmt) or 0)
 
+    async def list_day(self, player_id: UUID, week_id: UUID, day: int) -> list[LogEntry]:
+        stmt = (
+            select(ActionLogRow)
+            .where(
+                ActionLogRow.player_id == player_id,
+                ActionLogRow.week_id == week_id,
+                ActionLogRow.day == day,
+            )
+            .order_by(ActionLogRow.created_at)
+        )
+        return [m.log_from_row(row) for row in (await self._s.scalars(stmt)).all()]
+
+    async def latest(self, player_id: UUID, kind: ActionKind) -> LogEntry | None:
+        stmt = (
+            select(ActionLogRow)
+            .where(ActionLogRow.player_id == player_id, ActionLogRow.kind == kind)
+            .order_by(ActionLogRow.created_at.desc())
+            .limit(1)
+        )
+        row = await self._s.scalar(stmt)
+        return m.log_from_row(row) if row else None
+
 
 class ShopRepo:
     def __init__(self, session: AsyncSession) -> None:
@@ -180,6 +204,28 @@ class ShopRepo:
 
     async def count_discount_purchases_total(self, player_id: UUID) -> int:
         return await self._count_discount(player_id, None)
+
+    async def count_need_purchases(self, player_id: UUID, week_id: UUID) -> int:
+        stmt = (
+            select(func.count())
+            .select_from(PurchaseRow)
+            .join(ShopItemRow, ShopItemRow.slug == PurchaseRow.item_slug)
+            .where(
+                PurchaseRow.player_id == player_id,
+                PurchaseRow.week_id == week_id,
+                ShopItemRow.category.in_((Category.FOOD, Category.WATER)),
+            )
+        )
+        return int(await self._s.scalar(stmt) or 0)
+
+    async def list_owned_slugs(self, player_id: UUID) -> list[str]:
+        stmt = (
+            select(PurchaseRow.item_slug)
+            .join(ShopItemRow, ShopItemRow.slug == PurchaseRow.item_slug)
+            .where(PurchaseRow.player_id == player_id, ShopItemRow.slot != "")
+            .distinct()
+        )
+        return list((await self._s.scalars(stmt)).all())
 
     async def _count_discount(self, player_id: UUID, week_id: UUID | None) -> int:
         stmt = (
@@ -223,6 +269,13 @@ class TaskRepo:
             self._s.add(m.progress_to_row(progress))
         else:
             m.progress_to_row(progress, row)
+
+    async def count_rewarded(self, player_id: UUID) -> int:
+        stmt = select(func.count()).where(
+            TaskProgressRow.player_id == player_id,
+            TaskProgressRow.rewarded_at.is_not(None),
+        )
+        return int(await self._s.scalar(stmt) or 0)
 
     async def _progress_row(
         self, player_id: UUID, week_id: UUID, slug: str
@@ -284,3 +337,21 @@ class BadgeRepo:
         row.percent = percent
         if percent >= 100 and row.unlocked_at is None:
             row.unlocked_at = datetime.now(UTC)
+
+
+class AiCacheRepo:
+    def __init__(self, session: AsyncSession) -> None:
+        self._s = session
+
+    async def get(self, key: str) -> str | None:
+        row = await self._s.get(AiCacheRow, key)
+        return row.payload if row else None
+
+    async def put(self, key: str, payload: str, *, player_id: UUID | None, kind: str) -> None:
+        row = await self._s.get(AiCacheRow, key)
+        if row is None:
+            self._s.add(AiCacheRow(key=key, player_id=player_id, kind=kind, payload=payload))
+            return
+        row.payload = payload
+        row.kind = kind
+        row.player_id = player_id

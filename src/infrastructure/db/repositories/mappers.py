@@ -17,7 +17,7 @@ from domain.entities import (
     TaskProgress,
     Week,
 )
-from domain.enums import Category
+from domain.enums import Category, EventMode
 from infrastructure.db.models import (
     ActionLogRow,
     BadgeDefRow,
@@ -37,7 +37,17 @@ from infrastructure.db.models import (
 
 
 def player_from_row(row: PlayerRow) -> Player:
-    return Player(row.id, row.device_id, row.weekly_income, row.free_coins, row.sound_on)
+    mode = row.event_mode if row.event_mode in {m.value for m in EventMode} else EventMode.RANDOM
+    return Player(
+        row.id,
+        row.device_id,
+        row.weekly_income,
+        row.free_coins,
+        row.sound_on,
+        EventMode(mode),
+        row.vaccinated_until,
+        list(row.unlocked_shop or []),
+    )
 
 
 def player_to_row(player: Player, row: PlayerRow | None = None) -> PlayerRow:
@@ -45,6 +55,9 @@ def player_to_row(player: Player, row: PlayerRow | None = None) -> PlayerRow:
     row.weekly_income = player.weekly_income
     row.free_coins = player.free_coins
     row.sound_on = player.sound_on
+    row.event_mode = str(player.event_mode)
+    row.vaccinated_until = player.vaccinated_until
+    row.unlocked_shop = list(player.unlocked_shop)
     return row
 
 
@@ -54,7 +67,17 @@ def pet_from_row(row: PetRow) -> Pet:
         Category.WATER: row.need_water,
         Category.PLAY: row.need_play,
     }
-    return Pet(row.id, row.player_id, row.name, row.species, row.xp, needs)
+    return Pet(
+        row.id,
+        row.player_id,
+        row.name,
+        row.species,
+        row.xp,
+        needs,
+        row.look_variant,
+        row.equipped_pot or "",
+        row.equipped_accessory or "",
+    )
 
 
 def pet_to_row(pet: Pet, row: PetRow | None = None) -> PetRow:
@@ -63,6 +86,9 @@ def pet_to_row(pet: Pet, row: PetRow | None = None) -> PetRow:
     row.need_food = pet.needs[Category.FOOD]
     row.need_water = pet.needs[Category.WATER]
     row.need_play = pet.needs[Category.PLAY]
+    row.look_variant = pet.look_variant
+    row.equipped_pot = pet.equipped_pot
+    row.equipped_accessory = pet.equipped_accessory
     return row
 
 
@@ -71,7 +97,17 @@ def week_from_row(row: WeekRow) -> Week:
     for category in Category:  # старые недели без строки статьи не должны ломать домен
         entries.setdefault(category, PlanEntry(category, 0))
     return Week(
-        row.id, row.player_id, row.number, row.income, row.day, entries, row.overrun, row.closed_at
+        row.id,
+        row.player_id,
+        row.number,
+        row.income,
+        row.day,
+        entries,
+        row.overrun,
+        row.closed_at,
+        row.summary_text,
+        dict(row.modifiers or {}),
+        bool(row.plan_confirmed),
     )
 
 
@@ -82,6 +118,9 @@ def week_to_row(week: Week, row: WeekRow | None = None) -> WeekRow:
     row.day = week.day
     row.overrun = week.overrun
     row.closed_at = week.closed_at
+    row.summary_text = week.summary_text
+    row.modifiers = dict(week.modifiers or {})
+    row.plan_confirmed = week.plan_confirmed
     existing = {e.category: e for e in row.entries}
     for category, entry in week.entries.items():
         target = existing.get(category)
@@ -95,18 +134,34 @@ def week_to_row(week: Week, row: WeekRow | None = None) -> WeekRow:
 
 
 def goal_from_row(row: GoalRow) -> Goal:
-    return Goal(row.id, row.player_id, row.title, row.target, row.saved, row.achieved_at)
+    return Goal(
+        row.id, row.player_id, row.title, row.target, row.saved, row.achieved_at, row.catalog_slug or ""
+    )
 
 
 def goal_to_row(goal: Goal, row: GoalRow | None = None) -> GoalRow:
     row = row or GoalRow(id=goal.id, player_id=goal.player_id)
-    row.title, row.target, row.saved, row.achieved_at = (
+    row.title, row.target, row.saved, row.achieved_at, row.catalog_slug = (
         goal.title,
         goal.target,
         goal.saved,
         goal.achieved_at,
+        goal.catalog_slug,
     )
     return row
+
+
+def log_from_row(row: ActionLogRow) -> LogEntry:
+    return LogEntry(
+        row.player_id,
+        row.week_id,
+        row.day,
+        row.kind,
+        row.amount,
+        row.category,
+        row.note,
+        dict(row.meta or {}),
+    )
 
 
 def log_to_row(entry: LogEntry) -> ActionLogRow:
@@ -132,6 +187,8 @@ def shop_item_from_row(row: ShopItemRow) -> ShopItem:
         row.glyph,
         row.restore,
         row.xp_bonus,
+        hidden=bool(row.hidden),
+        slot=row.slot or "",
     )
 
 

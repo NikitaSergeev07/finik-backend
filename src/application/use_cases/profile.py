@@ -8,6 +8,7 @@ from application.ports import UnitOfWork
 from application.use_cases._common import load_state
 from core.errors import NotFound, RuleViolation
 from domain import rules
+from domain.enums import EventMode
 
 
 @dataclass(frozen=True, slots=True)
@@ -16,6 +17,7 @@ class ProfileView:
     earned_total: int
     saved_total: int
     weeks_done: int
+    tasks_done: int
 
 
 async def get_profile(uow: UnitOfWork, player_id: UUID) -> ProfileView:
@@ -24,11 +26,16 @@ async def get_profile(uow: UnitOfWork, player_id: UUID) -> ProfileView:
         closed = await uow.weeks.list_closed(player_id, limit=520)
         earned = sum(w.income for w in closed) + state.week.income
         saved = sum(w.entry_saved() for w in closed)
-        return ProfileView(state, earned, saved, len(closed))
+        tasks_done = await uow.tasks.count_rewarded(player_id)
+        return ProfileView(state, earned, saved, len(closed), tasks_done)
 
 
 async def update_settings(
-    uow: UnitOfWork, player_id: UUID, weekly_income: int | None, sound_on: bool | None
+    uow: UnitOfWork,
+    player_id: UUID,
+    weekly_income: int | None,
+    sound_on: bool | None,
+    event_mode: EventMode | None = None,
 ) -> GameState:
     async with uow:
         state = await load_state(uow, player_id)
@@ -38,6 +45,8 @@ async def update_settings(
             state.player.weekly_income = weekly_income  # вступит в силу со следующей недели
         if sound_on is not None:
             state.player.sound_on = sound_on
+        if event_mode is not None:
+            state.player.event_mode = event_mode
         await uow.players.save(state.player)
         await uow.commit()
         return state
@@ -51,5 +60,7 @@ async def reset(uow: UnitOfWork, player_id: UUID) -> None:
             raise NotFound("Игрок не найден")
         await uow.players.wipe_progress(player_id)
         player.free_coins = 0
+        player.vaccinated_until = 0
+        player.unlocked_shop = []
         await uow.players.save(player)
         await uow.commit()

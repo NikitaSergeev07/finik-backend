@@ -31,6 +31,13 @@ class Mood(StrEnum):
     SAD = "SAD"
 
 
+class EventMode(StrEnum):
+    """Как выбирается событие дня: взвешенный хеш или уклон в более поздние истории."""
+
+    RANDOM = "random"
+    ESCALATING = "escalating"
+
+
 class ActionKind(StrEnum):
     """Что записывается в журнал: основа отчётов, летописи и достижений."""
 
@@ -42,7 +49,13 @@ class ActionKind(StrEnum):
     EVENT_CHOICE = "EVENT_CHOICE"
     DAY_END = "DAY_END"
     WEEK_CLOSE = "WEEK_CLOSE"
+    STREAK = "STREAK"
     PARENT_BONUS = "PARENT_BONUS"
+    INTEREST = "INTEREST"
+    CASHBACK = "CASHBACK"
+    WILT = "WILT"
+    INCOME = "INCOME"
+    PLAN_CONFIRM = "PLAN_CONFIRM"
 
 
 class TaskKind(StrEnum):

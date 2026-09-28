@@ -24,7 +24,8 @@ class Settings(BaseSettings):
     gigachat_verify_ssl: bool = True
     # Путь к корневому сертификату Минцифры (PEM). Если задан, проверка идёт по нему.
     gigachat_ca_bundle: str = "certs/russian_trusted_root_ca.pem"
-    gigachat_timeout_seconds: float = 20.0
+    gigachat_timeout_seconds: float = 8.0
+    parent_pin: str = "1234"
 
     @property
     def gigachat_enabled(self) -> bool:
