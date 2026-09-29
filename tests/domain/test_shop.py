@@ -38,10 +38,24 @@ def test_price_rise_adds_two_to_food():
 def test_sale_sets_old_cost():
     week = _week(1, sale_percent=50)
     priced = shop_rules.with_week_price(_item(cost=10), week)
-    assert priced.cost == 5 and priced.old_cost == 10 and priced.is_sale
+    assert priced.cost == 9 and priced.old_cost == 10 and priced.is_sale
 
 
 def test_hidden_until_unlocked():
     item = _item(hidden=True)
     assert not shop_rules.is_visible(item, [])
     assert shop_rules.is_visible(item, ["food_week"])
+
+
+def test_small_sales_never_cut_more_than_ten_percent_even_for_cheap_items():
+    from domain import rules
+
+    for cost in range(1, 51):
+        for number in (1, 2, 11, 20):
+            item = ShopItem("x", "Товар", Category.FOOD, cost, None, "POT")
+            week = _week(number)
+            week.modifiers["sale_percent"] = 50  # Legacy/modifier input is clamped too.
+            priced = shop_rules.with_week_price(item, week)
+            base = rules.scaled_cost(cost, number)
+            assert priced.cost * 100 >= base * 90
+            assert priced.cost <= base

@@ -48,6 +48,10 @@ def player_from_row(row: PlayerRow) -> Player:
         EventMode(mode),
         row.vaccinated_until,
         list(row.unlocked_shop or []),
+        row.timezone or "UTC",
+        row.mode or "normal",
+        dict(row.clock or {}),
+        row.selected_goal_slug or "sunny_window",
     )
 
 
@@ -59,6 +63,10 @@ def player_to_row(player: Player, row: PlayerRow | None = None) -> PlayerRow:
     row.event_mode = str(player.event_mode)
     row.vaccinated_until = player.vaccinated_until
     row.unlocked_shop = list(player.unlocked_shop)
+    row.timezone = player.timezone
+    row.mode = player.mode
+    row.clock = dict(player.clock)
+    row.selected_goal_slug = player.selected_goal_slug
     return row
 
 
@@ -78,6 +86,7 @@ def pet_from_row(row: PetRow) -> Pet:
         row.look_variant,
         row.equipped_pot or "",
         row.equipped_accessory or "",
+        list(row.accessories or []),
     )
 
 
@@ -90,6 +99,8 @@ def pet_to_row(pet: Pet, row: PetRow | None = None) -> PetRow:
     row.look_variant = pet.look_variant
     row.equipped_pot = pet.equipped_pot
     row.equipped_accessory = pet.equipped_accessory
+    row.accessories = list(pet.accessories)
+    row.species = pet.species
     return row
 
 

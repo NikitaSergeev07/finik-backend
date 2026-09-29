@@ -107,7 +107,7 @@ def apply_option(player: Player, pet: Pet, week: Week, option: EventOption) -> E
     sale = effects.get("sale_percent")
     if sale:
         current = int(week.modifiers.get("sale_percent") or 0)
-        week.modifiers = {**week.modifiers, "sale_percent": max(current, int(sale))}
+        week.modifiers = {**week.modifiers, "sale_percent": min(10, max(current, int(sale)))}
 
     vaccinate = int(effects.get("vaccinate") or 0)  # type: ignore[arg-type]
     if vaccinate > 0:

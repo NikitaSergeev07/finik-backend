@@ -11,6 +11,7 @@ from zoneinfo import ZoneInfo
 from application import ai_prompts
 from application.ports import LlmGateway, UnitOfWork
 from application.use_cases._common import load_state
+from application.use_cases.calendar import local_date
 from core.errors import NotFound, RuleViolation
 from domain.services import learning as learning_rules
 from domain.services import persona, safety
@@ -88,7 +89,8 @@ async def record_attempt(
         return
     progress = await _read_progress(uow, player_id)
     row = progress.setdefault(topic, {})
-    _update_topic(row, correct, _today(), review=review)
+    player = await uow.players.get(player_id)
+    _update_topic(row, correct, local_date(player) if player else _today(), review=review)
     await _write_progress(uow, player_id, progress)
 
 
@@ -103,9 +105,9 @@ def _due_topic(progress: dict[str, dict[str, object]], today: date) -> str | Non
 
 
 async def review(uow: UnitOfWork, player_id: UUID) -> ReviewView:
-    today = _today()
     async with uow:
-        await load_state(uow, player_id)
+        state = await load_state(uow, player_id)
+        today = local_date(state.player)
         progress = await _read_progress(uow, player_id)
         topic = _due_topic(progress, today)
         if topic:
@@ -122,9 +124,9 @@ async def review(uow: UnitOfWork, player_id: UUID) -> ReviewView:
 async def answer_review(
     uow: UnitOfWork, player_id: UUID, topic: str, answer_index: int
 ) -> ReviewAnswerView:
-    today = _today()
     async with uow:
-        await load_state(uow, player_id)
+        state = await load_state(uow, player_id)
+        today = local_date(state.player)
         progress = await _read_progress(uow, player_id)
         if topic != _due_topic(progress, today):
             raise RuleViolation("Открой сегодняшнее повторение заново")

@@ -29,6 +29,11 @@ class Unauthorized(AppError):
     status_code = 401
 
 
+class Forbidden(AppError):
+    code = "forbidden"
+    status_code = 403
+
+
 class RuleViolation(AppError):
     """Действие противоречит правилам игры: нет монет в статье, план больше дохода и т.п."""
 

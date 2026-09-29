@@ -3,7 +3,7 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from domain.entities import (
@@ -47,10 +47,16 @@ class PlayerRepo:
         self._s = session
 
     async def get(self, player_id: UUID) -> Player | None:
-        row = await self._s.get(PlayerRow, player_id)
+        # Serialize every player command, including lazy calendar catch-up.
+        row = await self._s.scalar(
+            select(PlayerRow).where(PlayerRow.id == player_id).with_for_update()
+        )
         return m.player_from_row(row) if row else None
 
     async def get_by_device(self, device_id: str) -> Player | None:
+        await self._s.execute(
+            text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"), {"key": device_id}
+        )
         row = await self._s.scalar(select(PlayerRow).where(PlayerRow.device_id == device_id))
         return m.player_from_row(row) if row else None
 
@@ -123,12 +129,19 @@ class GoalRepo:
     async def get_active(self, player_id: UUID) -> Goal | None:
         stmt = (
             select(GoalRow)
-            .where(GoalRow.player_id == player_id, GoalRow.achieved_at.is_(None))
+            .join(PlayerRow, PlayerRow.id == GoalRow.player_id)
+            .where(
+                GoalRow.player_id == player_id, GoalRow.catalog_slug == PlayerRow.selected_goal_slug
+            )
             .order_by(GoalRow.created_at.desc())
             .limit(1)
         )
         row = await self._s.scalar(stmt)
         return m.goal_from_row(row) if row else None
+
+    async def list_all(self, player_id: UUID) -> list[Goal]:
+        rows = await self._s.scalars(select(GoalRow).where(GoalRow.player_id == player_id))
+        return [m.goal_from_row(row) for row in rows]
 
     async def add(self, goal: Goal) -> None:
         self._s.add(m.goal_to_row(goal))
@@ -139,6 +152,23 @@ class GoalRepo:
 
 
 class LogRepo:
+    async def earned_total(self, player_id: UUID) -> int:
+        kinds = (
+            ActionKind.INCOME,
+            ActionKind.TASK_REWARD,
+            ActionKind.STREAK,
+            ActionKind.PARENT_BONUS,
+            ActionKind.EVENT_CHOICE,
+            ActionKind.INTEREST,
+            ActionKind.CASHBACK,
+        )
+        stmt = select(func.coalesce(func.sum(ActionLogRow.amount), 0)).where(
+            ActionLogRow.player_id == player_id,
+            ActionLogRow.kind.in_(kinds),
+            ActionLogRow.amount > 0,
+        )
+        return int(await self._s.scalar(stmt) or 0)
+
     def __init__(self, session: AsyncSession) -> None:
         self._s = session
 

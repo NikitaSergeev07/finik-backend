@@ -58,6 +58,8 @@ async def buy(uow: UnitOfWork, player_id: UUID, slug: str) -> PurchaseResult:
         item = await uow.shop.get_item(slug)
         if item is None or not shop_rules.is_visible(item, state.player.unlocked_shop):
             raise NotFound("Такого товара нет в лавке")
+        if not state.week.plan_confirmed:
+            raise RuleViolation("Сначала утверди план недели")
         priced = shop_rules.with_week_price(item, state.week)
         if priced.slot and priced.slug in state.owned_cosmetics:
             raise RuleViolation(f"«{priced.name}» уже у тебя. Надень его кнопкой «Надеть».")
@@ -67,6 +69,14 @@ async def buy(uow: UnitOfWork, player_id: UUID, slug: str) -> PurchaseResult:
             state.pet.equipped_pot = priced.slug
         elif priced.slot == look_rules.ACCESSORY:
             state.pet.equipped_accessory = priced.slug
+            owl_accessory = {
+                "hat_leaf": "hat",
+                "scarf_knit": "bandana",
+                "glasses_round": "medal",
+                "charm_can": "backpack",
+            }.get(priced.slug)
+            if owl_accessory:
+                state.pet.accessories = sorted(set((*state.pet.accessories, owl_accessory)))
         await uow.log.add(
             LogEntry(
                 player_id,

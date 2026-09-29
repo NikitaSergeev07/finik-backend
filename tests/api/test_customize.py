@@ -12,6 +12,7 @@ async def test_buy_pot_and_accessory_then_customize(client: AsyncClient):
     )
     assert r.status_code == 200
 
+    await client.post("/api/v1/plan/confirm", headers=h)
     r = await client.post("/api/v1/shop/buy", headers=h, json={"slug": "pot_blue"})
     assert r.status_code == 200, r.text
     pet = r.json()["state"]["pet"]

@@ -49,12 +49,12 @@ def test_wrong_slot_rejected():
         look_rules.apply_customize(pet, {"pot_blue"}, catalog, accessory="pot_blue")
 
 
-def test_look_variant_still_three_colors():
+def test_look_variant_has_six_colors():
     pet = _pet()
     look_rules.apply_customize(pet, set(), {}, look_variant=2)
     assert pet.look_variant == 2
     with pytest.raises(RuleViolation):
-        look_rules.apply_customize(pet, set(), {}, look_variant=3)
+        look_rules.apply_customize(pet, set(), {}, look_variant=6)
 
 
 def test_cosmetic_purchase_spends_play_not_food():

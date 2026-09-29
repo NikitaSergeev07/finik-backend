@@ -24,8 +24,8 @@ async def get_profile(uow: UnitOfWork, player_id: UUID) -> ProfileView:
     async with uow:
         state = await load_state(uow, player_id)
         closed = await uow.weeks.list_closed(player_id, limit=520)
-        earned = sum(w.income for w in closed) + state.week.income
-        saved = sum(w.entry_saved() for w in closed)
+        earned = await uow.log.earned_total(player_id)
+        saved = sum(goal.saved for goal in state.goals)
         tasks_done = await uow.tasks.count_rewarded(player_id)
         return ProfileView(state, earned, saved, len(closed), tasks_done)
 
@@ -62,5 +62,7 @@ async def reset(uow: UnitOfWork, player_id: UUID) -> None:
         player.free_coins = 0
         player.vaccinated_until = 0
         player.unlocked_shop = []
+        player.clock = {}
+        player.selected_goal_slug = rules.GOAL_CATALOG[0].slug
         await uow.players.save(player)
         await uow.commit()

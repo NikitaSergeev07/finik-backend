@@ -30,9 +30,9 @@ class CareAction:
 
 
 CARE_ACTIONS: dict[Category, CareAction] = {
-    Category.WATER: CareAction(Category.WATER, "Полить", cost=2, restore=30),
-    Category.FOOD: CareAction(Category.FOOD, "Покормить", cost=3, restore=30),
-    Category.PLAY: CareAction(Category.PLAY, "Поиграть", cost=2, restore=30),
+    Category.WATER: CareAction(Category.WATER, "Напоить", cost=2, restore=22),
+    Category.FOOD: CareAction(Category.FOOD, "Покормить", cost=3, restore=22),
+    Category.PLAY: CareAction(Category.PLAY, "Поиграть", cost=2, restore=22),
 }
 
 # Сколько потребность теряет за игровой день до учёта черты ростка.
@@ -53,6 +53,7 @@ class SpeciesTrait:
 
 
 SPECIES_TRAITS: dict[Species, SpeciesTrait] = {
+    Species.OWL: SpeciesTrait({}, bonus_category=Category.SAVE),
     Species.FINIK: SpeciesTrait({Category.WATER: 1.5}, bonus_category=Category.WATER),
     Species.CACTUS: SpeciesTrait(
         {Category.FOOD: 0.5, Category.WATER: 0.7}, bonus_category=Category.FOOD
@@ -62,7 +63,7 @@ SPECIES_TRAITS: dict[Species, SpeciesTrait] = {
 }
 
 # Опыт. Стадии открываются по порогам; названия совпадают с growthStages клиента.
-XP_PER_CARE = 2
+XP_PER_CARE = 1
 XP_CARE_TRAIT_BONUS = 1
 XP_GOOD_DAY = 5  # все потребности выше 50 на конец дня
 XP_WEEK_NO_OVERRUN = 10
@@ -73,9 +74,9 @@ XP_OVERRUN_PENALTY = 5
 WILT_XP_LOSS = 20
 
 STAGE_THRESHOLDS: tuple[int, ...] = (0, 100, 200, 300, 400)
-STAGE_NAMES: tuple[str, ...] = ("Семечко", "Росток", "Кустик", "Молодое дерево", "Дерево")
+STAGE_NAMES: tuple[str, ...] = ("Малыш", "Непоседа", "Подросток", "Взрослый друг", "Мудрый друг")
 
-LOOK_VARIANTS = 3  # 3 вида × 3 цвета = 9 обликов
+LOOK_VARIANTS = 6  # BLUE, DESERT_SAND, FIERY_RED, FOREST_GREEN, NIGHT_PURPLE, SNOWY_WHITE
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,19 +90,19 @@ class GoalOption:
 GOAL_CATALOG: tuple[GoalOption, ...] = (
     GoalOption(
         "sunny_window",
-        "Солнечное окно и большой горшок",
+        "Уютное гнездо у окна",
         150,
-        "Ростку нужен свет и место для корней — это большая, но понятная мечта.",
+        "Сове нужен уютный дом и место для отдыха — это большая, но понятная мечта.",
     ),
     GoalOption(
         "watering_kit",
-        "Набор для полива",
+        "Набор для заботы",
         80,
-        "Лейка и запас воды. Обязательный уход станет проще.",
+        "Поилка и запас корма. Обязательный уход станет проще.",
     ),
     GoalOption(
         "play_garden",
-        "Игровая клумба",
+        "Игровая площадка",
         120,
         "Место для игр. Это желаемое: можно подождать, если копилка тонкая.",
     ),
@@ -122,8 +123,9 @@ def goal_by_slug(slug: str | None) -> GoalOption:
 
 def look_variant_or_raise(value: int) -> int:
     if value not in range(LOOK_VARIANTS):
-        raise RuleViolation("Такого цвета нет. Выбери один из трёх.")
+        raise RuleViolation("Такого цвета нет. Выбери один из шести.")
     return value
+
 
 # Копилка: на закрытии недели остаток SAVE растёт на 5%, дробь отбрасывается.
 SAVINGS_INTEREST_PCT = 5

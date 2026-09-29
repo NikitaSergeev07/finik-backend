@@ -1,15 +1,19 @@
 """Игровые сценарии: состояние, план, уход, конец дня."""
 
-from uuid import UUID, uuid4
+from datetime import timedelta
+from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from application.dto import CareResult, DayResult, GameState
 from application.ports import UnitOfWork
 from application.use_cases._common import load_state
-from core.errors import RuleViolation
+from application.use_cases.calendar import game_now
+from core.errors import Forbidden, RuleViolation
 from domain import rules
-from domain.entities import LogEntry, PlanEntry, Week
+from domain.entities import LogEntry
 from domain.enums import ActionKind, Category
-from domain.services import care, growth, planning
+from domain.services import care, planning
+from domain.services.growth import DayOutcome
 
 
 async def get_state(uow: UnitOfWork, player_id: UUID) -> GameState:
@@ -20,8 +24,10 @@ async def get_state(uow: UnitOfWork, player_id: UUID) -> GameState:
 async def set_plan(uow: UnitOfWork, player_id: UUID, planned: dict[Category, int]) -> GameState:
     async with uow:
         state = await load_state(uow, player_id)
-        if state.week.plan_confirmed:
-            raise RuleViolation("План уже утверждён. Менять можно на следующей неделе.")
+        if state.week.plan_confirmed and any(
+            planned[cat] < state.week.entry(cat).planned for cat in Category
+        ):
+            raise RuleViolation("Подтверждённый план можно только пополнять свободными монетами")
         planning.apply_plan(state.player, state.week, planned)
         await uow.weeks.save(state.week)
         await uow.players.save(state.player)
@@ -52,6 +58,8 @@ async def confirm_plan(uow: UnitOfWork, player_id: UUID) -> GameState:
 async def care_for_pet(uow: UnitOfWork, player_id: UUID, category: Category) -> CareResult:
     async with uow:
         state = await load_state(uow, player_id)
+        if not state.week.plan_confirmed:
+            raise RuleViolation("Сначала утверди план недели")
         outcome = care.perform_care(state.pet, state.week, category)
         await uow.log.add(
             LogEntry(
@@ -83,16 +91,33 @@ async def care_for_pet(uow: UnitOfWork, player_id: UUID, category: Category) -> 
         return CareResult(outcome, state)
 
 
+async def topup_plan(uow: UnitOfWork, player_id: UUID, additions: dict[Category, int]) -> GameState:
+    async with uow:
+        state = await load_state(uow, player_id)
+        if any(amount < 0 for amount in additions.values()):
+            raise RuleViolation("Пополнение не может быть отрицательным")
+        totals = {cat: state.week.entry(cat).planned + additions.get(cat, 0) for cat in Category}
+        planning.apply_plan(state.player, state.week, totals)
+        await uow.weeks.save(state.week)
+        await uow.players.save(state.player)
+        await uow.commit()
+        return state
+
+
 async def deposit(uow: UnitOfWork, player_id: UUID, amount: int) -> GameState:
-    """Отложить свободные монеты прямо в мечту, минуя план."""
     if amount <= 0:
         raise RuleViolation("Отложить можно только положительную сумму")
     async with uow:
         state = await load_state(uow, player_id)
-        if state.player.free_coins < amount:
-            raise RuleViolation(f"Свободных монет только {state.player.free_coins}")
-        state.player.free_coins -= amount
+        if not state.week.plan_confirmed:
+            raise RuleViolation("Сначала утверди план недели")
+        saving = state.week.entry(Category.SAVE)
+        if saving.left < amount:
+            raise RuleViolation(f"В копилке недели только {saving.left} монет")
+        saving.spent += amount
         state.goal.saved += amount
+        if state.goal.saved >= state.goal.target:
+            state.goal.achieved_at = game_now(state.player)
         await uow.log.add(
             LogEntry(
                 player_id,
@@ -102,139 +127,73 @@ async def deposit(uow: UnitOfWork, player_id: UUID, amount: int) -> GameState:
                 amount=amount,
                 category=Category.SAVE,
                 note="Отложено в мечту",
+                meta={"goal_slug": state.goal.catalog_slug},
             )
         )
-        await uow.players.save(state.player)
+        await uow.weeks.save(state.week)
         await uow.goals.save(state.goal)
         await uow.commit()
         return state
 
 
-async def end_day(uow: UnitOfWork, player_id: UUID) -> DayResult:
+async def withdraw(uow: UnitOfWork, player_id: UUID, amount: int) -> GameState:
+    if amount <= 0:
+        raise RuleViolation("Снять можно только положительную сумму")
     async with uow:
         state = await load_state(uow, player_id)
-        day = growth.end_day(state.pet, state.week)
+        if amount > state.goal.saved:
+            raise RuleViolation(f"В этой цели только {state.goal.saved} монет")
+        state.goal.saved -= amount
+        if state.goal.saved < state.goal.target:
+            state.goal.achieved_at = None
+        state.week.entry(Category.PLAY).planned += amount
         await uow.log.add(
             LogEntry(
                 player_id,
                 state.week.id,
-                day.day - 1,
-                ActionKind.DAY_END,
-                note="День завершён",
-                meta={"xp": day.xp_gained, "wilt": day.wilt_xp_lost},
+                state.week.day,
+                ActionKind.WITHDRAW,
+                amount=amount,
+                category=Category.PLAY,
+                note="Из цели в бюджет развлечений",
+                meta={"goal_slug": state.goal.catalog_slug},
             )
         )
-        if day.wilt_xp_lost:
-            await uow.log.add(
-                LogEntry(
-                    player_id,
-                    state.week.id,
-                    day.day - 1,
-                    ActionKind.WILT,
-                    amount=day.wilt_xp_lost,
-                    note="Росток завял: потребность на нуле, потерян опыт",
-                    meta={"xp_lost": day.wilt_xp_lost},
-                )
-            )
-        week_outcome = None
-        week = state.week
-        if day.week_finished:
-            week_outcome = growth.close_week(state.player, state.pet, week, state.goal)
-            week.closed_at = _now()
-            await uow.log.add(
-                LogEntry(
-                    player_id,
-                    week.id,
-                    rules.DAYS_IN_WEEK,
-                    ActionKind.WEEK_CLOSE,
-                    amount=week_outcome.saved,
-                    note=f"Неделя {week.number} закрыта",
-                    meta={
-                        "overrun": week_outcome.overrun,
-                        "xp": week_outcome.xp_gained,
-                        "interest": week_outcome.interest,
-                        "cashback": week_outcome.cashback,
-                    },
-                )
-            )
-            if week_outcome.interest:
-                await uow.log.add(
-                    LogEntry(
-                        player_id,
-                        week.id,
-                        rules.DAYS_IN_WEEK,
-                        ActionKind.INTEREST,
-                        amount=week_outcome.interest,
-                        category=Category.SAVE,
-                        note=f"Копилка подросла на {rules.SAVINGS_INTEREST_PCT}%",
-                    )
-                )
-            if week_outcome.cashback:
-                await uow.log.add(
-                    LogEntry(
-                        player_id,
-                        week.id,
-                        rules.DAYS_IN_WEEK,
-                        ActionKind.CASHBACK,
-                        amount=week_outcome.cashback,
-                        note="Редкий росток вернул монетку с остатка игр",
-                    )
-                )
-            if week_outcome.goal_achieved:
-                state.goal.achieved_at = _now()
-            await uow.weeks.save(week)
-            state.player.free_coins += rules.STREAK_BONUS
-            await uow.log.add(
-                LogEntry(
-                    player_id,
-                    week.id,
-                    rules.DAYS_IN_WEEK,
-                    ActionKind.STREAK,
-                    amount=rules.STREAK_BONUS,
-                    note="7 дней подряд",
-                )
-            )
-            state.player.free_coins += state.player.weekly_income
-            week = Week(
-                uuid4(),
-                player_id,
-                week.number + 1,
-                state.player.weekly_income,
-                day=1,
-                entries={cat: PlanEntry(cat, 0) for cat in Category},
-            )
-            await uow.weeks.add(week)
-            await uow.log.add(
-                LogEntry(
-                    player_id,
-                    week.id,
-                    1,
-                    ActionKind.INCOME,
-                    amount=state.player.weekly_income,
-                    note=f"Пришёл доход {state.player.weekly_income}",
-                )
-            )
-            await uow.goals.save(state.goal)
-        else:
-            await uow.weeks.save(week)
-        await uow.pets.save(state.pet)
-        await uow.players.save(state.player)
+        await uow.goals.save(state.goal)
+        await uow.weeks.save(state.week)
         await uow.commit()
-        income_note = f"Пришёл доход {state.player.weekly_income}"
-        new_state = GameState(
-            state.player,
-            state.pet,
-            week,
-            state.goal,
-            last_income=state.player.weekly_income if day.week_finished else state.last_income,
-            last_income_note=income_note if day.week_finished else state.last_income_note,
-            last_purchase_note=state.last_purchase_note,
-            last_purchase_amount=state.last_purchase_amount,
-        )
-        return DayResult(day, week_outcome, new_state)
+        return state
 
 
-def _now():
-    from datetime import UTC, datetime
+async def advance_demo(
+    uow: UnitOfWork, player_id: UUID, *, days: int = 1, to_week_end: bool = False
+) -> GameState:
+    async with uow:
+        state = await load_state(uow, player_id)
+        if state.player.mode != "demo":
+            raise Forbidden("Пропуск времени доступен только в деморежиме")
+        if not 1 <= days <= 31:
+            raise RuleViolation("За один раз можно пропустить от 1 до 31 дня")
+        local_now = game_now(state.player).astimezone(ZoneInfo(state.player.timezone))
+        count = 7 - local_now.weekday() if to_week_end else days
+        target = local_now + timedelta(days=count)
+        if to_week_end:
+            target = target.replace(hour=0, minute=0, second=0, microsecond=0)
+        state.player.clock = {**state.player.clock, "demo_now": target.isoformat()}
+        await uow.players.save(state.player)
+        # Re-load within the SAME lock and transaction, then settle virtual calendar days.
+        result = await load_state(uow, player_id)
+        await uow.commit()
+        return result
 
-    return datetime.now(UTC)
+
+async def end_day(uow: UnitOfWork, player_id: UUID) -> DayResult:
+    # Preserve the legacy response envelope, with the same server-side demo guard.
+    async with uow:
+        before = await load_state(uow, player_id)
+        if before.player.mode != "demo":
+            raise Forbidden("Пропуск времени доступен только в деморежиме")
+        number, xp = before.week.number, before.pet.xp
+    state = await advance_demo(uow, player_id)
+    finished = state.week.number != number
+    return DayResult(DayOutcome(state.week.day, state.pet.xp - xp, finished), None, state)

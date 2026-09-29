@@ -35,3 +35,12 @@ def _equip(owned: set[str], catalog: dict[str, ShopItem], slug: str, slot: str) 
     if slug not in owned:
         raise RuleViolation(f"Сначала купи «{item.name}» в лавке за монеты игр")
     return slug
+
+
+OWL_ACCESSORIES = frozenset({"hat", "bandana", "medal", "backpack"})
+
+
+def validate_accessories(values: list[str]) -> list[str]:
+    if any(value not in OWL_ACCESSORIES for value in values):
+        raise RuleViolation("Неизвестный аксессуар совы")
+    return sorted(set(values))

@@ -14,6 +14,7 @@ from zoneinfo import ZoneInfo
 from application import ai_prompts
 from application.ports import LlmGateway, UnitOfWork
 from application.use_cases._common import load_state
+from application.use_cases.calendar import local_date
 from core.errors import NotFound, RuleViolation
 from domain import rules
 from domain.entities import LogEntry
@@ -169,9 +170,17 @@ async def adventure_reaction(
     async with uow:
         state = await load_state(uow, player_id)
         key = _key(
-            "adventure-reaction-v1", player_id, slug, decision.stage,
-            decision.wallet, decision.reserve, decision.care, decision.joy,
-            decision.score, decision.dream, decision.feedback,
+            "adventure-reaction-v1",
+            player_id,
+            slug,
+            decision.stage,
+            decision.wallet,
+            decision.reserve,
+            decision.care,
+            decision.joy,
+            decision.score,
+            decision.dream,
+            decision.feedback,
         )
         cached = _read(await uow.ai.get(key)) if llm.enabled else None
         system, user = ai_prompts.adventure_reaction(
@@ -181,8 +190,14 @@ async def adventure_reaction(
     if cached:
         return AiText(cached, "cache")
     text, source = await _complete(
-        llm, fallback, system, user, max_tokens=90, temperature=0.7,
-        limit=220, sentences=2,
+        llm,
+        fallback,
+        system,
+        user,
+        max_tokens=90,
+        temperature=0.7,
+        limit=220,
+        sentences=2,
     )
     if any(character.isdigit() for character in text):
         text, source = fallback, "fallback"
@@ -200,9 +215,8 @@ async def week_summary(uow: UnitOfWork, llm: LlmGateway, player_id: UUID) -> AiT
         week = closed[0]
         if week.summary_text:
             return AiText(week.summary_text, "cache", week_number=week.number)
-        fallback = (
-            persona.VOICE_OPENING[state.pet.species]
-            + persona.week_summary_fallback(week, state.goal)
+        fallback = persona.VOICE_OPENING[state.pet.species] + persona.week_summary_fallback(
+            week, state.goal
         )
         snap = ai_prompts.snapshot(state.player, state.pet, week, state.goal)
         system, user = ai_prompts.week_story(state.pet.name, snap, state.pet.species)
@@ -229,9 +243,9 @@ async def week_summary(uow: UnitOfWork, llm: LlmGateway, player_id: UUID) -> AiT
 
 
 async def word_of_day(uow: UnitOfWork, llm: LlmGateway, player_id: UUID) -> WordCard:
-    today = datetime.now(ZoneInfo("Europe/Moscow")).date()
     async with uow:
-        await load_state(uow, player_id)
+        state = await load_state(uow, player_id)
+        today = local_date(state.player)
         card = words.word_for_date(today)
         fallback = card.example
         key = _key("word-v2", str(today), card.word)
@@ -340,7 +354,7 @@ async def chat(uow: UnitOfWork, llm: LlmGateway, player_id: UUID, text: str) -> 
         state = await load_state(uow, player_id)
         if safety.is_blocked(message) or safety.is_off_topic(message):
             return AiText(persona.REDIRECT, "fallback", mood=state.pet.mood, blocked=True)
-        count_key = _key("chatcnt", player_id, datetime.now(ZoneInfo("Europe/Moscow")).date())
+        count_key = _key("chatcnt", player_id, local_date(state.player))
         used = int((await uow.ai.get(count_key)) or 0)
         left = max(0, rules.AI_CHAT_PER_DAY - used)
         if left <= 0:
@@ -397,8 +411,8 @@ def _quiz_kind(kind: str) -> str:
     return "riddle" if kind == "riddle" else "quiz"
 
 
-def _quiz_key(player_id: UUID, kind: str) -> str:
-    today = datetime.now(ZoneInfo("Europe/Moscow")).date()
+def _quiz_key(player_id: UUID, kind: str, today=None) -> str:
+    today = today or datetime.now(ZoneInfo("UTC")).date()
     version = "quiz-v4" if kind == "riddle" else "quiz-v3"
     return _key(version, player_id, today, kind)
 
@@ -471,7 +485,7 @@ async def get_quiz(
     kind = _quiz_kind(kind)
     async with uow:
         state = await load_state(uow, player_id)
-        key = _quiz_key(player_id, kind)
+        key = _quiz_key(player_id, kind, local_date(state.player))
         cached = await uow.ai.get(key)
         if cached:
             payload = json.loads(cached)
@@ -485,7 +499,7 @@ async def get_quiz(
             for item in catalog
             if shop_rules.is_visible(item, state.player.unlocked_shop)
         ]
-        seed = f"{state.pet.id}:{datetime.now(ZoneInfo('Europe/Moscow')).date()}:{kind}"
+        seed = f"{state.pet.id}:{local_date(state.player)}:{kind}"
         questions = quiz_rules.build_questions(priced, kind, seed)
         if not questions:
             raise NotFound("В лавке мало товаров для вопроса")
@@ -505,7 +519,7 @@ async def answer_quiz(
     kind = _quiz_kind(kind)
     async with uow:
         state = await load_state(uow, player_id)
-        key = _quiz_key(player_id, kind)
+        key = _quiz_key(player_id, kind, local_date(state.player))
         cached = await uow.ai.get(key)
         if not cached:
             raise NotFound("Сначала получи вопросы")
@@ -553,7 +567,7 @@ async def explain_quiz(
     kind = _quiz_kind(kind)
     async with uow:
         state = await load_state(uow, player_id)
-        payload_raw = await uow.ai.get(_quiz_key(player_id, kind))
+        payload_raw = await uow.ai.get(_quiz_key(player_id, kind, local_date(state.player)))
         if not payload_raw:
             raise NotFound("Сначала открой задачу дня")
         payload = json.loads(payload_raw)
@@ -565,7 +579,7 @@ async def explain_quiz(
         key = _key(
             "quiz-explain-v2",
             player_id,
-            datetime.now(ZoneInfo("Europe/Moscow")).date(),
+            local_date(state.player),
             kind,
             index,
         )

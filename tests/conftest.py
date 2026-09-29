@@ -32,3 +32,13 @@ async def client() -> AsyncIterator[AsyncClient]:
     transport = ASGITransport(app=create_app())
     async with AsyncClient(transport=transport, base_url="http://test") as c:
         yield c
+
+
+@pytest.fixture
+def monday_clock(monkeypatch):
+    """Legacy scenario tests advance explicitly inside isolated demo profiles."""
+    from datetime import UTC, datetime
+
+    from application.use_cases import calendar
+
+    monkeypatch.setattr(calendar, "now_utc", lambda: datetime(2026, 9, 28, 12, tzinfo=UTC))

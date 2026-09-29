@@ -1,6 +1,7 @@
 """Покупка в лавке: строго из своей статьи, без добора из копилки. Цены — с множителем недели."""
 
 from dataclasses import dataclass, replace
+from math import ceil
 
 from core.errors import RuleViolation
 from domain import rules
@@ -29,9 +30,9 @@ def with_week_price(item: ShopItem, week: Week) -> ShopItem:
         display_old = max(item.old_cost, rules.scaled_cost(item.old_cost, week.number, extra))
         if display_old <= scaled:
             display_old = item.old_cost if item.old_cost > scaled else None
-    sale_pct = int(week.modifiers.get("sale_percent") or 0)
+    sale_pct = min(10, max(0, int(week.modifiers.get("sale_percent") or 0)))
     if sale_pct > 0:
-        discounted = max(1, round(scaled * (100 - sale_pct) / 100))
+        discounted = max(1, ceil(scaled * (100 - sale_pct) / 100))
         if discounted < scaled:
             display_old = max(display_old or 0, scaled)
             scaled = discounted

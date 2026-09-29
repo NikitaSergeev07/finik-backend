@@ -6,6 +6,7 @@ from enum import StrEnum
 class Species(StrEnum):
     """Вид ростка. Черта меняет скорость убывания потребностей и бонус к опыту."""
 
+    OWL = "OWL"
     FINIK = "FINIK"  # пальма, пьёт много воды, +опыт за воду
     CACTUS = "CACTUS"  # кактус, редко ест, дешёвый уход
     SPARK = "SPARK"  # огонёк, скучает быстрее, +опыт за игры
@@ -44,6 +45,7 @@ class ActionKind(StrEnum):
     CARE = "CARE"
     PURCHASE = "PURCHASE"
     DEPOSIT = "DEPOSIT"
+    WITHDRAW = "WITHDRAW"
     OVERRUN = "OVERRUN"
     TASK_REWARD = "TASK_REWARD"
     EVENT_CHOICE = "EVENT_CHOICE"

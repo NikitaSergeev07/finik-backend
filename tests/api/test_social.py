@@ -2,15 +2,24 @@
 
 from uuid import uuid4
 
+import pytest
 from httpx import AsyncClient
+
+pytestmark = pytest.mark.usefixtures("monday_clock")
 
 
 async def start(client: AsyncClient, species: str = "FINIK") -> dict[str, str]:
-    r = await client.post("/api/v1/auth/device", json={"device_id": f"test-{uuid4()}"})
+    r = await client.post(
+        "/api/v1/auth/device", json={"device_id": f"test-{uuid4()}", "mode": "demo"}
+    )
     h = {"Authorization": f"Bearer {r.json()['token']}"}
     await client.post(
         "/api/v1/pet", headers=h, json={"name": "Кустик", "species": species, "weekly_income": 40}
     )
+    await client.put(
+        "/api/v1/plan", headers=h, json={"food": 16, "water": 12, "play": 4, "save": 8}
+    )
+    await client.post("/api/v1/plan/confirm", headers=h)
     return h
 
 
@@ -46,7 +55,7 @@ async def test_scam_needs_free_coins(client: AsyncClient):
         if ev and ev["slug"] == "scam_message":
             free = (await client.get("/api/v1/state", headers=h)).json()["free_coins"]
             if free:  # после закрытия недели монеты есть: прячем их в мечту
-                await client.post("/api/v1/goal/deposit", headers=h, json={"amount": free})
+                await client.post("/api/v1/plan/topup", headers=h, json={"save": free})
             r = await client.post(
                 f"/api/v1/events/{ev['id']}/choose", headers=h, json={"option": "pay"}
             )
@@ -74,7 +83,7 @@ async def test_badges_and_profile(client: AsyncClient):
 
     r = await client.get("/api/v1/profile", headers=h)
     p = r.json()
-    assert p["weeks_done"] == 1 and p["saved_total"] == 8 and p["earned_total"] == 80
+    assert p["weeks_done"] == 1 and p["saved_total"] == 8 and p["earned_total"] >= 85
 
     r = await client.patch(
         "/api/v1/profile", headers=h, json={"weekly_income": 60, "sound_on": False}

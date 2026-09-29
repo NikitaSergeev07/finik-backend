@@ -206,7 +206,7 @@ class HistoryOut(BaseModel):
             ]
             spent = sum(e.spent for e in last.entries.values() if e.category.is_need)
             summary = (
-                f"План {last.income} · потрачено {spent} · "
+                f"Доход {last.income} · потрачено {spent} · "
                 f"отложено {last.entry(Category.SAVE).spent}"
             )
             story = last.summary_text

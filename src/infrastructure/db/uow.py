@@ -43,6 +43,9 @@ class SqlAlchemyUnitOfWork:
         try:
             if exc[0] is not None:
                 await self._session.rollback()
+            else:
+                # Read requests can advance the calendar; persist that in this transaction.
+                await self._session.commit()
         finally:
             await self._session.close()
             self._session = None

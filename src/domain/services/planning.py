@@ -26,7 +26,8 @@ def apply_plan(player: Player, week: Week, planned: dict[Category, int]) -> None
             )
 
     total = sum(planned.values())
-    budget = available_for_plan(player, week)
+    # Planned totals include money already spent; using only unspent loses coins.
+    budget = player.free_coins + week.planned_total
     if total > budget:
         raise RuleViolation(f"Можно распределить не больше {budget} монет, а в плане {total}")
 

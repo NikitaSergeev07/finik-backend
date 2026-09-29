@@ -2,16 +2,25 @@
 
 from uuid import uuid4
 
+import pytest
 from httpx import AsyncClient
+
+pytestmark = pytest.mark.usefixtures("monday_clock")
 
 
 async def start(client: AsyncClient) -> dict[str, str]:
-    r = await client.post("/api/v1/auth/device", json={"device_id": f"test-{uuid4()}"})
+    r = await client.post(
+        "/api/v1/auth/device", json={"device_id": f"test-{uuid4()}", "mode": "demo"}
+    )
     h = {"Authorization": f"Bearer {r.json()['token']}"}
     r = await client.post(
         "/api/v1/pet", headers=h, json={"name": "Кустик", "species": "CACTUS", "weekly_income": 40}
     )
     assert r.status_code == 201
+    await client.put(
+        "/api/v1/plan", headers=h, json={"food": 16, "water": 12, "play": 4, "save": 8}
+    )
+    await client.post("/api/v1/plan/confirm", headers=h)
     return h
 
 
@@ -106,7 +115,7 @@ async def test_history_after_week(client: AsyncClient):
     assert body["weeks"][0]["tone"] == "HIGH"
     food = next(row for row in body["last_report"] if row["category"] == "FOOD")
     assert food["actual"] == 3 and food["is_over"] is False
-    assert body["last_summary"].startswith("План 40")
+    assert body["last_summary"].startswith("Доход 40")
 
 
 async def test_hidden_item_absent_until_unlock(client: AsyncClient):

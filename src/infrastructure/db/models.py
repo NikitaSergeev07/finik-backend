@@ -39,6 +39,10 @@ class PlayerRow(IdMixin, TimestampMixin, Base):
     event_mode: Mapped[str] = mapped_column(String(16), default="random")
     vaccinated_until: Mapped[int] = mapped_column(Integer, default=0)
     unlocked_shop: Mapped[list[str]] = mapped_column(JSON, default=list)
+    timezone: Mapped[str] = mapped_column(String(64), default="UTC")
+    mode: Mapped[str] = mapped_column(String(12), default="normal")
+    clock: Mapped[dict[str, object]] = mapped_column(JSON, default=dict)
+    selected_goal_slug: Mapped[str] = mapped_column(String(40), default="sunny_window")
 
     __table_args__ = (CheckConstraint("free_coins >= 0", name="free_coins_non_negative"),)
 
@@ -58,6 +62,7 @@ class PetRow(IdMixin, TimestampMixin, Base):
     look_variant: Mapped[int] = mapped_column(Integer, default=0)
     equipped_pot: Mapped[str] = mapped_column(String(40), default="")
     equipped_accessory: Mapped[str] = mapped_column(String(40), default="")
+    accessories: Mapped[list[str]] = mapped_column(JSON, default=list)
 
 
 # --- недели и план ----------------------------------------------------------

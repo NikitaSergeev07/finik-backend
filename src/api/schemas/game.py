@@ -1,11 +1,14 @@
 """Схемы ответов. Повторяют модели мобильного клиента, чтобы маппинг там был тривиальным."""
 
 from dataclasses import asdict
+from datetime import date, datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from application.dto import CareResult, DayResult, GameState
+from application.use_cases.calendar import game_now, now_utc, week_instant
 from domain import rules
 from domain.enums import Category, Mood, Species
 from domain.services.persona import remark_fallback
@@ -13,19 +16,25 @@ from domain.services.persona import remark_fallback
 
 class DeviceLoginIn(BaseModel):
     device_id: str = Field(min_length=8, max_length=128)
+    timezone: str = Field(default="UTC", min_length=1, max_length=64)
+    mode: Literal["normal", "demo"] = "normal"
+    demo_preset: Literal["new", "prepared"] | None = None
 
 
 class TokenOut(BaseModel):
     token: str
     has_pet: bool
+    timezone: str = "UTC"
+    mode: str = "normal"
 
 
 class CreatePetIn(BaseModel):
     name: str = Field(min_length=1, max_length=20)
-    species: Species
+    species: Species = Species.OWL
     weekly_income: int
     goal_slug: str | None = None
-    look_variant: int = Field(default=0, ge=0, le=2)
+    look_variant: int = Field(default=0, ge=0, le=5)
+    accessories: list[str] = Field(default_factory=list, max_length=4)
 
 
 class GoalSelectIn(BaseModel):
@@ -47,10 +56,23 @@ class PlanIn(BaseModel):
         }
 
 
+class PlanTopUpIn(PlanIn):
+    food: int = Field(default=0, ge=0)
+    water: int = Field(default=0, ge=0)
+    play: int = Field(default=0, ge=0)
+    save: int = Field(default=0, ge=0)
+
+
+class DemoAdvanceIn(BaseModel):
+    days: int = Field(default=1, ge=1, le=31)
+    to_week_end: bool = False
+
+
 class CustomizeIn(BaseModel):
     pot: str | None = Field(default=None, max_length=40)
     accessory: str | None = Field(default=None, max_length=40)
-    look_variant: int | None = Field(default=None, ge=0, le=2)
+    look_variant: int | None = Field(default=None, ge=0, le=5)
+    accessories: list[str] | None = Field(default=None, max_length=4)
 
 
 class CareIn(BaseModel):
@@ -82,6 +104,7 @@ class PetOut(BaseModel):
     look_variant: int = 0
     equipped_pot: str = ""
     equipped_accessory: str = ""
+    accessories: list[str] = Field(default_factory=list)
 
 
 class PlanEntryOut(BaseModel):
@@ -99,6 +122,8 @@ class WeekOut(BaseModel):
     overrun: int
     entries: list[PlanEntryOut]
     plan_confirmed: bool = False
+    starts_at: datetime | None = None
+    ends_at: datetime | None = None
 
 
 class GoalOut(BaseModel):
@@ -137,11 +162,11 @@ class StreakOut(BaseModel):
     days: list[StreakDayOut]
 
     @classmethod
-    def from_day(cls, day: int) -> "StreakOut":
-        current = min(max(day, 1), rules.DAYS_IN_WEEK)
+    def from_elapsed(cls, elapsed: int) -> "StreakOut":
+        current = max(0, elapsed) % rules.DAYS_IN_WEEK
         days = [
-            StreakDayOut(label=label, done=index + 1 <= current)
-            for index, label in enumerate(rules.STREAK_LABELS)
+            StreakDayOut(label=str(index + 1), done=index < current)
+            for index in range(rules.DAYS_IN_WEEK)
         ]
         return cls(count=current, goal=rules.DAYS_IN_WEEK, bonus=rules.STREAK_BONUS, days=days)
 
@@ -159,6 +184,12 @@ class StateOut(BaseModel):
     last_purchase_note: str = ""
     last_purchase_amount: int = 0
     owned_cosmetics: list[str] = Field(default_factory=list)
+    goals: list[GoalOut] = Field(default_factory=list)
+    timezone: str = "UTC"
+    mode: str = "normal"
+    server_now: datetime
+    game_now: datetime
+    can_advance_time: bool = False
 
     @classmethod
     def from_state(cls, s: GameState) -> "StateOut":
@@ -168,6 +199,34 @@ class StateOut(BaseModel):
         why = option.why if option else ""
         remain = max(0, s.goal.target - s.goal.saved)
         return cls(
+            timezone=s.player.timezone,
+            mode=s.player.mode,
+            server_now=now_utc(),
+            game_now=game_now(s.player),
+            can_advance_time=s.player.mode == "demo",
+            goals=[
+                GoalOut(
+                    id=g.id,
+                    title=g.title,
+                    target=g.target,
+                    saved=g.saved,
+                    percent=g.percent,
+                    remain=max(0, g.target - g.saved),
+                    catalog_slug=g.catalog_slug,
+                    why=next((o.why for o in rules.GOAL_CATALOG if o.slug == g.catalog_slug), ""),
+                )
+                for g in sorted(
+                    s.goals or (s.goal,),
+                    key=lambda goal: next(
+                        (
+                            i
+                            for i, option in enumerate(rules.GOAL_CATALOG)
+                            if option.slug == goal.catalog_slug
+                        ),
+                        99,
+                    ),
+                )
+            ],
             free_coins=s.player.free_coins,
             weekly_income=s.player.weekly_income,
             pet=PetOut(
@@ -184,6 +243,7 @@ class StateOut(BaseModel):
                 look_variant=s.pet.look_variant,
                 equipped_pot=s.pet.equipped_pot,
                 equipped_accessory=s.pet.equipped_accessory,
+                accessories=s.pet.accessories,
             ),
             week=WeekOut(
                 id=s.week.id,
@@ -196,6 +256,16 @@ class StateOut(BaseModel):
                     for e in s.week.entries.values()
                 ],
                 plan_confirmed=s.week.plan_confirmed,
+                starts_at=week_instant(
+                    s.player, date.fromisoformat(str(s.week.modifiers["calendar_start"]))
+                )
+                if "calendar_start" in s.week.modifiers
+                else None,
+                ends_at=week_instant(
+                    s.player, date.fromisoformat(str(s.week.modifiers["calendar_end"]))
+                )
+                if "calendar_end" in s.week.modifiers
+                else None,
             ),
             goal=GoalOut(
                 id=s.goal.id,
@@ -211,7 +281,7 @@ class StateOut(BaseModel):
                 CareActionOut(category=a.category, label=a.label, cost=a.cost)
                 for a in rules.CARE_ACTIONS.values()
             ],
-            streak=StreakOut.from_day(s.week.day),
+            streak=StreakOut.from_elapsed(int(s.player.clock.get("elapsed_days", 0))),
             last_income=s.last_income or s.week.income,
             last_income_note=s.last_income_note or f"Пришёл доход {s.week.income}",
             last_purchase_note=s.last_purchase_note,

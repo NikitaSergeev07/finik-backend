@@ -18,6 +18,10 @@ class Player:
     event_mode: EventMode = EventMode.RANDOM
     vaccinated_until: int = 0  # номер недели включительно; 0 — прививки нет
     unlocked_shop: list[str] = field(default_factory=list)
+    timezone: str = "UTC"
+    mode: str = "normal"
+    clock: dict[str, object] = field(default_factory=dict)
+    selected_goal_slug: str = "sunny_window"
 
 
 @dataclass(slots=True)
@@ -31,6 +35,7 @@ class Pet:
     look_variant: int = 0
     equipped_pot: str = ""
     equipped_accessory: str = ""
+    accessories: list[str] = field(default_factory=list)
 
     @property
     def stage_index(self) -> int:

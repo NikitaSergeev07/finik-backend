@@ -18,6 +18,7 @@ class GameState:
     last_purchase_note: str = ""
     last_purchase_amount: int = 0
     owned_cosmetics: tuple[str, ...] = ()
+    goals: tuple[Goal, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

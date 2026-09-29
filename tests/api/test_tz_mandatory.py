@@ -42,7 +42,7 @@ async def test_goal_catalog_and_select(client: AsyncClient):
     )
     assert r.status_code == 201, r.text
     state = r.json()
-    assert state["goal"]["title"] == "Набор для полива"
+    assert state["goal"]["title"] == "Набор для заботы"
     assert state["goal"]["target"] == 80
     assert state["goal"]["catalog_slug"] == "watering_kit"
     assert state["goal"]["remain"] == 80

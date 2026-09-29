@@ -1,0 +1,50 @@
+# Host environments must not replace the Linux environment created by Dockerfile.
+**/.venv
+**/venv
+**/env
+
+# Local configuration and secrets; the example contains placeholders only.
+**/.env
+**/.env.*
+!**/.env.example
+**/*.key
+**/*.p12
+**/*.pfx
+
+# Version control and editor state.
+.git
+.hg
+.svn
+.idea
+.run
+.vscode
+.codex
+.agents
+**/.DS_Store
+**/*.iml
+**/*.swp
+**/*.swo
+**/*~
+
+# Python caches, builds, tests and generated reports.
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.ruff_cache
+**/.mypy_cache
+**/.tox
+**/.nox
+**/*.egg-info
+**/.eggs
+build
+dist
+tests
+htmlcov
+coverage.xml
+.coverage
+.coverage.*
+junit*.xml
+test-results
+**/*.log
+
+# Keep src/, alembic/, alembic.ini, pyproject.toml, uv.lock and certs/ for runtime.

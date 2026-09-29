@@ -11,7 +11,14 @@ router = APIRouter(prefix="/auth", tags=["Вход"])
 @router.post("/device", response_model=TokenOut, summary="Вход по идентификатору устройства")
 async def login_by_device(body: DeviceLoginIn, uow: UowDep, settings: SettingsDep) -> TokenOut:
     """Ребёнок ничего не вводит. Телефон присылает свой идентификатор и получает токен."""
-    player = await onboarding.register_device(uow, body.device_id)
+    player = await onboarding.register_device(
+        uow, body.device_id, timezone=body.timezone, mode=body.mode, demo_preset=body.demo_preset
+    )
     async with uow:
         has_pet = await uow.pets.get_by_player(player.id) is not None
-    return TokenOut(token=issue_token(player.id, settings), has_pet=has_pet)
+    return TokenOut(
+        token=issue_token(player.id, settings),
+        has_pet=has_pet,
+        timezone=player.timezone,
+        mode=player.mode,
+    )

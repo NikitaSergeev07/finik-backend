@@ -39,7 +39,7 @@ def test_price_delta_stays_on_week():
 def test_sale_percent_on_week():
     player, pet, week = _world()
     event_rules.apply_option(player, pet, week, EventOption("look", "Смотрю", {"sale_percent": 30}))
-    assert week.modifiers["sale_percent"] == 30
+    assert week.modifiers["sale_percent"] == 10
 
 
 def test_pay_from_free_then_savings():

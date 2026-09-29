@@ -53,7 +53,7 @@ def test_care_spends_from_category_and_restores_need():
     planning.apply_plan(player, week, planning.advised_plan(40))
     pet.needs[Category.WATER] = 50
     out = care.perform_care(pet, week, Category.WATER)
-    assert out.cost == 2 and out.restored == 30
+    assert out.cost == 2 and out.restored == 22
     assert week.entry(Category.WATER).spent == 2
     assert out.xp_gained == rules.XP_PER_CARE + rules.XP_CARE_TRAIT_BONUS  # Финик любит воду
 
@@ -173,4 +173,4 @@ def test_goal_catalog_has_three_and_lookup():
         rules.goal_by_slug("unknown")
     assert rules.look_variant_or_raise(2) == 2
     with pytest.raises(RuleViolation):
-        rules.look_variant_or_raise(3)
+        rules.look_variant_or_raise(6)

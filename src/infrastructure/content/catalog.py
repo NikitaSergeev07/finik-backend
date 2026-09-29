@@ -51,7 +51,7 @@ SHOP_ITEMS = [
     ),
     dict(
         slug="new_pot",
-        name="Новый горшок",
+        name="Уютное гнездо",
         category="PLAY",
         cost=18,
         old_cost=None,
@@ -63,7 +63,7 @@ SHOP_ITEMS = [
     ),
     dict(
         slug="pot_blue",
-        name="Синий горшок",
+        name="Синяя подушка",
         category="PLAY",
         cost=3,
         old_cost=None,
@@ -75,7 +75,7 @@ SHOP_ITEMS = [
     ),
     dict(
         slug="pot_striped",
-        name="Полосатый горшок",
+        name="Полосатая подушка",
         category="PLAY",
         cost=4,
         old_cost=None,
@@ -87,7 +87,7 @@ SHOP_ITEMS = [
     ),
     dict(
         slug="watering_can",
-        name="Лейка получше",
+        name="Удобная поилка",
         category="WATER",
         cost=8,
         old_cost=11,
@@ -111,7 +111,7 @@ SHOP_ITEMS = [
     ),
     dict(
         slug="leaf_soap",
-        name="Мыло для листьев",
+        name="Средство для перьев",
         category="FOOD",
         cost=5,
         old_cost=None,
@@ -135,7 +135,7 @@ SHOP_ITEMS = [
     ),
     dict(
         slug="hat_leaf",
-        name="Шляпка-листик",
+        name="Шляпа для совы",
         category="PLAY",
         cost=3,
         old_cost=None,
@@ -147,7 +147,7 @@ SHOP_ITEMS = [
     ),
     dict(
         slug="glasses_round",
-        name="Круглые очки",
+        name="Медаль исследователя",
         category="PLAY",
         cost=3,
         old_cost=None,
@@ -159,7 +159,7 @@ SHOP_ITEMS = [
     ),
     dict(
         slug="scarf_knit",
-        name="Шарфик",
+        name="Бандана",
         category="PLAY",
         cost=2,
         old_cost=None,
@@ -171,7 +171,7 @@ SHOP_ITEMS = [
     ),
     dict(
         slug="charm_can",
-        name="Брелок-лейка",
+        name="Рюкзак",
         category="PLAY",
         cost=3,
         old_cost=None,
@@ -183,7 +183,7 @@ SHOP_ITEMS = [
     ),
     dict(
         slug="sun_sticker",
-        name="Наклейка на горшок",
+        name="Украшение гнезда",
         category="PLAY",
         cost=2,
         old_cost=None,
@@ -246,7 +246,7 @@ TASK_DEFS = [
     ),
     dict(
         slug="streak_7",
-        title="Позаботься о ростке 7 дней",
+        title="Позаботься о сове 7 дней",
         kind="HABIT",
         target=None,
         reward=5,
@@ -350,10 +350,10 @@ QUIZ_QUESTIONS = [
         slug="q_need_1",
         lesson_slug="lesson_need_want",
         order=1,
-        question="Куда положишь корм для ростка?",
+        question="Куда положишь корм для совы?",
         options=["Нужно", "Хочется"],
         right_index=0,
-        explanation="Корм нужен ростку каждый день. Сначала заботимся о важном.",
+        explanation="Корм нужен сове каждый день. Сначала заботимся о важном.",
     ),
     dict(
         slug="q_need_2",
@@ -398,7 +398,7 @@ QUIZ_QUESTIONS = [
         question="Вода закончилась, а в лавке появился новый мяч. Что купишь сначала?",
         options=["Воду", "Мяч", "Всё сразу"],
         right_index=0,
-        explanation="Вода нужна ростку. Мяч можно купить позже, если останутся монеты.",
+        explanation="Вода нужна сове. Мяч можно купить позже, если останутся монеты.",
     ),
     dict(
         slug="q_save_1",
@@ -524,7 +524,7 @@ QUESTION_ACTIVITY = {
     "q_discount_1": ("COINS", "Касса со скидкой"),
     "q_discount_2": ("COINS", "Пополняем копилку"),
     "q_discount_3": ("CHOICE", "План и покупки"),
-    "q_need_1": ("SORT", "Корм для ростка"),
+    "q_need_1": ("SORT", "Корм для совы"),
     "q_need_2": ("SORT", "Мячик для игры"),
     "q_need_3": ("CHOICE", "Свободные монеты"),
     "q_budget_1": ("COINS", "Собери остаток"),
@@ -587,8 +587,8 @@ EVENT_DEFS = [
                 key="look",
                 label="Заглянуть в лавку",
                 effects={
-                    "sale_percent": 30,
-                    "note": "В лавке сегодня дешевле на 30%. Скидка до конца этой недели.",
+                    "sale_percent": 10,
+                    "note": "В лавке сегодня дешевле до 10%. Скидка до конца этой недели.",
                 },
             ),
             dict(key="skip", label="Пройти мимо", effects={"xp": 2}),
@@ -613,11 +613,11 @@ EVENT_DEFS = [
     ),
     dict(
         slug="sick",
-        title="Росток приболел",
+        title="Сова приболела",
         weight=2,
         min_week=1,
         text=(
-            "Листья поникли. Витамины поправят дело, "
+            "Крылья опустились. Витамины поправят дело, "
             "но можно и подождать: само пройдёт за пару дней."
         ),
         options=[
@@ -660,10 +660,10 @@ EVENT_DEFS = [
     ),
     dict(
         slug="charity",
-        title="Соседский росток заболел",
+        title="Соседский питомец заболел",
         weight=1,
         min_week=2,
-        text="Соседям не хватает 3 монет на витамины для их ростка.",
+        text="Соседям не хватает 3 монет на витамины для их совы.",
         options=[
             dict(
                 key="help",
@@ -678,7 +678,7 @@ EVENT_DEFS = [
         title="Неожиданный расход",
         weight=2,
         min_week=2,
-        text="Горшок треснул: срочно нужно 5 монет на заплату, иначе вода будет утекать.",
+        text="Поилка треснула: срочно нужно 5 монет на замену, иначе вода будет утекать.",
         options=[
             dict(
                 key="pay",
@@ -686,7 +686,7 @@ EVENT_DEFS = [
                 effects={
                     "pay": 5,
                     "xp": 2,
-                    "note": "Заплату купили. Неприятно, зато росток в безопасности.",
+                    "note": "Поилку заменили. Неприятно, зато питомец в безопасности.",
                 },
             ),
             dict(
@@ -734,7 +734,7 @@ EVENT_DEFS = [
         title="Пришли гости",
         weight=2,
         min_week=1,
-        text="Соседские ростки в гостях. Можно потратить 3 из игр на угощение — или отказаться.",
+        text="Соседские совы в гостях. Можно потратить 3 из игр на угощение — или отказаться.",
         options=[
             dict(
                 key="host",
@@ -759,7 +759,7 @@ EVENT_DEFS = [
     ),
     dict(
         slug="vaccine",
-        title="Прививка для ростка",
+        title="Прививка для совы",
         weight=2,
         min_week=1,
         text="Можно заплатить 3 монеты сейчас — и болезнь на ближайшие недели не придёт.",
@@ -778,7 +778,7 @@ EVENT_DEFS = [
                 key="skip",
                 label="Потом",
                 effects={
-                    "note": "Без прививки росток может приболеть в другой день. Это твой выбор.",
+                    "note": "Без прививки питомец может приболеть в другой день. Это твой выбор.",
                 },
             ),
         ],

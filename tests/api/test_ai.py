@@ -2,14 +2,14 @@
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
-from zoneinfo import ZoneInfo
 
 from httpx import ASGITransport, AsyncClient
 
 from api.deps import get_llm
 from application.use_cases import ai as use_ai
+from application.use_cases import calendar
 from domain.entities import ShopItem
 from domain.enums import Category
 from domain.services.quiz import build_questions
@@ -35,8 +35,10 @@ class ScriptedLlm:
         return self.text
 
 
-async def start(client: AsyncClient) -> dict[str, str]:
-    r = await client.post("/api/v1/auth/device", json={"device_id": f"test-{uuid4()}"})
+async def start(client: AsyncClient, mode: str = "normal") -> dict[str, str]:
+    r = await client.post(
+        "/api/v1/auth/device", json={"device_id": f"test-{uuid4()}", "mode": mode}
+    )
     headers = {"Authorization": f"Bearer {r.json()['token']}"}
     r = await client.post(
         "/api/v1/pet",
@@ -44,6 +46,10 @@ async def start(client: AsyncClient) -> dict[str, str]:
         json={"name": "Кустик", "species": "FINIK", "weekly_income": 40},
     )
     assert r.status_code == 201
+    await client.put(
+        "/api/v1/plan", headers=headers, json={"food": 16, "water": 12, "play": 4, "save": 8}
+    )
+    await client.post("/api/v1/plan/confirm", headers=headers)
     return headers
 
 
@@ -104,7 +110,7 @@ async def test_fallback_endpoints(client: AsyncClient):
 
 
 async def test_week_story_persists(client: AsyncClient):
-    h = await start(client)
+    h = await start(client, mode="demo")
     for _ in range(7):
         await client.post("/api/v1/day/end", headers=h)
     r = await client.get("/api/v1/ai/week-summary", headers=h)
@@ -142,16 +148,17 @@ async def test_lesson_hint_keeps_answer_hidden_and_caches() -> None:
     llm = ScriptedLlm("А что изменилось в цене после скидки?")
     async with llm_client(llm) as client:
         headers = await start(client)
-        question = (await client.get(
-            "/api/v1/tasks/lesson_discount/questions", headers=headers
-        )).json()[0]
+        question = (
+            await client.get("/api/v1/tasks/lesson_discount/questions", headers=headers)
+        ).json()[0]
         request = {"question_slug": question["slug"]}
         before = await client.post(
             "/api/v1/tasks/lesson_discount/hint", headers=headers, json=request
         )
         assert before.status_code == 422
         await client.post(
-            "/api/v1/tasks/lesson_discount/answer", headers=headers,
+            "/api/v1/tasks/lesson_discount/answer",
+            headers=headers,
             json={**request, "answer_index": 0},
         )
         first = await client.post(
@@ -170,15 +177,17 @@ async def test_lesson_hint_rejects_answer_from_model() -> None:
     llm = ScriptedLlm("Правильный ответ: 6 монет.")
     async with llm_client(llm) as client:
         headers = await start(client)
-        question = (await client.get(
-            "/api/v1/tasks/lesson_discount/questions", headers=headers
-        )).json()[0]
+        question = (
+            await client.get("/api/v1/tasks/lesson_discount/questions", headers=headers)
+        ).json()[0]
         await client.post(
-            "/api/v1/tasks/lesson_discount/answer", headers=headers,
+            "/api/v1/tasks/lesson_discount/answer",
+            headers=headers,
             json={"question_slug": question["slug"], "answer_index": 0},
         )
         response = await client.post(
-            "/api/v1/tasks/lesson_discount/hint", headers=headers,
+            "/api/v1/tasks/lesson_discount/hint",
+            headers=headers,
             json={"question_slug": question["slug"]},
         )
         assert response.json()["source"] == "fallback"
@@ -191,7 +200,8 @@ async def test_adventure_reaction_is_cached() -> None:
         headers = await start(client)
         url = "/api/v1/adventures/adventure_market"
         first = await client.post(
-            f"{url}/play", headers=headers,
+            f"{url}/play",
+            headers=headers,
             json={"expected_stage": 0, "food": 6, "water": 4, "reserve": 6},
         )
         resumed = await client.get(url, headers=headers)
@@ -268,7 +278,7 @@ async def test_shop_quiz_reward_once(client: AsyncClient):
         ShopItem(i["slug"], i["name"], Category(i["category"]), i["cost"], i["old_cost"], "G")
         for i in shelf
     ]
-    today = datetime.now(ZoneInfo("Europe/Moscow")).date()
+    today = datetime.fromisoformat(state["game_now"]).date()
     built = build_questions(items, "quiz", f"{state['pet']['id']}:{today}:quiz")
     r = await client.post(
         "/api/v1/ai/quiz/answer",
@@ -305,7 +315,7 @@ async def test_price_quiz_rotates_on_calendar_day(client: AsyncClient, monkeypat
         def now(cls, tz=None):
             return (base + timedelta(days=cls.day_offset)).replace(tzinfo=tz)
 
-    monkeypatch.setattr(use_ai, "datetime", Clock)
+    monkeypatch.setattr(calendar, "now_utc", lambda: Clock.now(UTC))
     h = await start(client)
     first = (await client.get("/api/v1/ai/quiz", headers=h)).json()
     assert first["answered"] == []
